@@ -1,11 +1,14 @@
 var React = require('react/addons');
 var $ = require('jquery');
+var styles = require('../styles/styles');
+require('../styles/clearfix.scss');
 
 var VisualSearch = React.createClass({
   getInitialState: function() {
     return {
       searchResults: [],
-      searchParams: []
+      searchParams: [],
+      loading: false
     }
   },
 
@@ -17,14 +20,14 @@ var VisualSearch = React.createClass({
     return this.state.searchResults[0];
   },
 
-  updateSearchParams: function(answer) {
+  updateSearchParams: function(answer, questionIndex) {
     var searchParamsClone = JSON.parse(JSON.stringify(this.state.searchParams));
-    if (answer.props.query) {
-      searchParamsClone.push(answer.props.query);
+    if (questionIndex === 0) {
+      searchParamsClone = [];
     }
 
-    if (answer.props.filter) {
-      searchParamsClone.push(answer.props.filter);
+    if (answer.props.searchParam) {
+      searchParamsClone.push(answer.props.searchParam);
     }
 
     this.setState({
@@ -40,27 +43,35 @@ var VisualSearch = React.createClass({
       getString['p_aq'] = this.state.searchParams.join(' and ');
     }
 
+    this.setState({loading: true});
     $.ajax({
       'url': 'http://deseret.cxsearch.cxense.com/api/search/marketplace-cars',
       'data': getString,
       'dataType': 'jsonp',
       'jsonpCallback': 'callback',
-      'headers': {
-        'Accept': 'application/javascript'
-      },
       'success': function(payload) {
-        this.setState({searchResults: payload.matches});
+        this.setState({
+          loading: false,
+          searchResults: payload.matches
+        });
       }.bind(this)
     });
   },
 
   render: function() {
     return (
-      <div>
-        <FeaturedResult result={this.firstSearchResult()} />
-        <Questions onQuestionAnswered={this.updateSearchParams}>
-          {this.props.children}
-        </Questions>
+      <div className="clearfix" style={{position: 'relative'}}>
+        <div style={styles.resultColumn}>
+          <FeaturedResult
+            result={this.firstSearchResult()}
+            loading={this.state.loading}
+          />
+        </div>
+        <div style={styles.questionsColumn}>
+          <Questions onQuestionAnswered={this.updateSearchParams}>
+            {this.props.children}
+          </Questions>
+        </div>
       </div>
     );
   }

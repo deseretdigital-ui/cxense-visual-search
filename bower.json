@@ -1,8 +1,8 @@
 {
-  "name": "DealsWidgetOfDoom",
-  "homepage": "https://github.com/you/DealsWidgetOfDoom",
+  "name": "VisualSearch",
+  "homepage": "https://github.com/you/VisualSearch",
   "authors": [
-    "You <you@DealsWidgetOfDoom.com"
+    "You <you@VisualSearch.com"
   ],
   "license": "MIT",
   "ignore": [
@@ -15,7 +15,7 @@
     "gulpfile.js",
     "src"
   ],
-  "main": "dist/DealsWidgetOfDoom.js",
+  "main": "dist/VisualSearch.js",
   "dependencies": {
     "react": "~0.12.1"
   }

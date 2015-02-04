@@ -13,8 +13,7 @@
   <script src="https://fb.me/react-with-addons-0.12.2.js"></script>
   <script src="https://fb.me/JSXTransformer-0.12.2.js"></script>
 
-  <script src="DealsWidgetOfDoom.js"></script>
-
+  <script src="VisualSearch.js"></script>
 </head>
 <body>
 
@@ -26,22 +25,22 @@
     React.render(
       <VisualSearch>
         <Question text="Pick a model">
-          <Answer query='query(make:"Toyota")'>Toyota</Answer>
-          <Answer query='query(make:"Ford")'>Ford</Answer>
-          <Answer query='query(make:"Honda")'>Honda</Answer>
-          <Answer query='query(make:"Saturn")'>Saturn</Answer>
+          <Answer searchParam='query(make:"Toyota")'>Toyota</Answer>
+          <Answer searchParam='query(make:"Ford")'>Ford</Answer>
+          <Answer searchParam='query(make:"Honda")'>Honda</Answer>
+          <Answer searchParam='query(make:"Chevrolet")'>Chevrolet</Answer>
         </Question>
         <Question text="Pick your mileage">
-          <Answer filter='filter(mileage:range[0,5000))'>0-5k</Answer>
-          <Answer filter='filter(mileage:range[5000,20000))'>5k-20k</Answer>
-          <Answer filter='filter(mileage:range[20000,100000))'>20k-100k</Answer>
-          <Answer filter='filter(mileage>=100000)'>100k+</Answer>
+          <Answer searchParam='filter(mileage:range[0,5000))'>0-5k</Answer>
+          <Answer searchParam='filter(mileage:range[5000,20000))'>5k-20k</Answer>
+          <Answer searchParam='filter(mileage:range[20000,100000))'>20k-100k</Answer>
+          <Answer searchParam='filter(mileage>=100000)'>100k+</Answer>
         </Question>
         <Question text="Pick your price">
-          <Answer filter='filter(price:range[0,5000))'>$0-$5k</Answer>
-          <Answer filter='filter(price:range[5000,15000))'>$5k-$15k</Answer>
-          <Answer filter='filter(price:range[15000,30000))'>$15k-$30k</Answer>
-          <Answer filter='filter(price>=30000)'>$30k+</Answer>
+          <Answer searchParam='filter(price:range[0,5000))'>$0-$5k</Answer>
+          <Answer searchParam='filter(price:range[5000,15000))'>$5k-$15k</Answer>
+          <Answer searchParam='filter(price:range[15000,30000))'>$15k-$30k</Answer>
+          <Answer searchParam='filter(price>=30000)'>$30k+</Answer>
         </Question>
       </VisualSearch>,
       document.getElementById('visualSearch')

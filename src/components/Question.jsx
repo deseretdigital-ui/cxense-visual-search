@@ -1,4 +1,5 @@
 var React = require('react/addons');
+var styles = require('../styles/styles');
 
 var Question = React.createClass({
   render: function() {
@@ -7,7 +8,9 @@ var Question = React.createClass({
     return (
       <div>
         <h2>{this.props.text}</h2>
-        {clickHandlerChildren}
+        <div style={styles.answers}>
+          {clickHandlerChildren}
+        </div>
       </div>
     );
   },

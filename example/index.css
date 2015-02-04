@@ -1,0 +1,18 @@
+@import url(http://fonts.googleapis.com/css?family=Raleway:500,600,700,400,300);
+
+body {
+  font-family: 'raleway';
+  font-size: 14px;
+  line-height: 1.2;
+  color: #363636;
+}
+
+.carLink {
+  text-decoration: none;
+  color: #2354ac;
+}
+
+.carLink:hover,
+.carLink:focus {
+  text-decoration: underline;
+}

@@ -35,9 +35,8 @@ var Questions = React.createClass({
       newQuestionIndex = 0;
     }
 
+    this.props.onQuestionAnswered(answer, this.state.questionIndex);
     this.setState({questionIndex: newQuestionIndex});
-
-    this.props.onQuestionAnswered(answer);
   },
 
   addAnswerHandlers: function(question) {

@@ -2,7 +2,7 @@ var webpack = require('webpack');
 
 module.exports = {
   output: {
-    filename: 'DealsWidgetOfDoom.js',
+    filename: 'VisualSearch.js',
     libraryTarget: 'umd'
   },
   module: {

@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("react/addons"));
+		module.exports = factory(require("react/addons"), require("react"));
 	else if(typeof define === 'function' && define.amd)
-		define(["react/addons"], factory);
+		define(["react/addons", "react"], factory);
 	else {
-		var a = typeof exports === 'object' ? factory(require("react/addons")) : factory(root["React"]);
+		var a = typeof exports === 'object' ? factory(require("react/addons"), require("react")) : factory(root["React"], root["React"]);
 		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
 	}
-})(this, function(__WEBPACK_EXTERNAL_MODULE_6__) {
+})(this, function(__WEBPACK_EXTERNAL_MODULE_6__, __WEBPACK_EXTERNAL_MODULE_13__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -66,13 +66,16 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	var React = __webpack_require__(6);
-	var $ = __webpack_require__(7);
+	var $ = __webpack_require__(9);
+	var styles = __webpack_require__(7);
+	__webpack_require__(10);
 
 	var VisualSearch = React.createClass({displayName: "VisualSearch",
 	  getInitialState: function() {
 	    return {
 	      searchResults: [],
-	      searchParams: []
+	      searchParams: [],
+	      loading: false
 	    }
 	  },
 
@@ -84,14 +87,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return this.state.searchResults[0];
 	  },
 
-	  updateSearchParams: function(answer) {
+	  updateSearchParams: function(answer, questionIndex) {
 	    var searchParamsClone = JSON.parse(JSON.stringify(this.state.searchParams));
-	    if (answer.props.query) {
-	      searchParamsClone.push(answer.props.query);
+	    if (questionIndex === 0) {
+	      searchParamsClone = [];
 	    }
 
-	    if (answer.props.filter) {
-	      searchParamsClone.push(answer.props.filter);
+	    if (answer.props.searchParam) {
+	      searchParamsClone.push(answer.props.searchParam);
 	    }
 
 	    this.setState({
@@ -107,26 +110,34 @@ return /******/ (function(modules) { // webpackBootstrap
 	      getString['p_aq'] = this.state.searchParams.join(' and ');
 	    }
 
+	    this.setState({loading: true});
 	    $.ajax({
 	      'url': 'http://deseret.cxsearch.cxense.com/api/search/marketplace-cars',
 	      'data': getString,
 	      'dataType': 'jsonp',
 	      'jsonpCallback': 'callback',
-	      'headers': {
-	        'Accept': 'application/javascript'
-	      },
 	      'success': function(payload) {
-	        this.setState({searchResults: payload.matches});
+	        this.setState({
+	          loading: false,
+	          searchResults: payload.matches
+	        });
 	      }.bind(this)
 	    });
 	  },
 
 	  render: function() {
 	    return (
-	      React.createElement("div", null, 
-	        React.createElement(FeaturedResult, {result: this.firstSearchResult()}), 
-	        React.createElement(Questions, {onQuestionAnswered: this.updateSearchParams}, 
-	          this.props.children
+	      React.createElement("div", {className: "clearfix", style: {position: 'relative'}}, 
+	        React.createElement("div", {style: styles.resultColumn}, 
+	          React.createElement(FeaturedResult, {
+	            result: this.firstSearchResult(), 
+	            loading: this.state.loading}
+	          )
+	        ), 
+	        React.createElement("div", {style: styles.questionsColumn}, 
+	          React.createElement(Questions, {onQuestionAnswered: this.updateSearchParams}, 
+	            this.props.children
+	          )
 	        )
 	      )
 	    );
@@ -141,6 +152,9 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	var React = __webpack_require__(6);
+	var styles = __webpack_require__(7);
+	var ReactIntl = __webpack_require__(8);
+	var FormattedNumber = ReactIntl.FormattedNumber;
 
 	var FeaturedResult = React.createClass({displayName: "FeaturedResult",
 	  render: function() {
@@ -153,20 +167,51 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  renderResult: function() {
 	    var fields = this.props.result.document.fields;
+	    var loading = this.renderLoadingDisplay()
+	    var url = 'http://ksl.com/auto/listing/' + fields.id;
 
 	    return (
 	      React.createElement("div", null, 
-	        React.createElement("h1", null, fields.makeYear, " ", fields.make, " ", fields.model), 
-	        React.createElement("h2", null, "$", fields.price), 
-	        React.createElement("h2", null, fields.mileage, " miles"), 
+	        loading, 
+	        React.createElement("h1", {style: styles.carTitle}, 
+	          React.createElement("a", {href: url, className: "carLink", target: "_blank"}, 
+	            fields.makeYear, " ", fields.make, " ", fields.model
+	          )
+	        ), 
+	        React.createElement("h2", {style: styles.miles}, 
+	          "Miles: ", 
+	          React.createElement(FormattedNumber, {value: fields.mileage})
+	        ), 
+	        React.createElement("h2", {style: styles.price}, 
+	          React.createElement(FormattedNumber, {value: fields.price, style: "currency", currency: "USD"})
+	        ), 
+	        React.createElement("hr", {style: styles.hr}), 
 	        React.createElement("p", null, fields.description)
 	      )
 	    );
 	  },
 
 	  renderNoResult: function() {
+	    var loading = this.renderLoadingDisplay();
+
 	    return (
-	      React.createElement("div", null, "I haven't done any searches yet.")
+	      React.createElement("div", null, 
+	        loading, 
+	        React.createElement("h1", null, "No results"), 
+	        React.createElement("p", null, "I haven't done any searches yet.")
+	      )
+	    );
+	  },
+
+	  renderLoadingDisplay: function() {
+	    if (!this.props.loading) {
+	      return null;
+	    }
+
+	    return (
+	      React.createElement("div", {style: styles.loading}, 
+	        "Loading..."
+	      )
 	    );
 	  }
 	});
@@ -215,9 +260,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      newQuestionIndex = 0;
 	    }
 
+	    this.props.onQuestionAnswered(answer, this.state.questionIndex);
 	    this.setState({questionIndex: newQuestionIndex});
-
-	    this.props.onQuestionAnswered(answer);
 	  },
 
 	  addAnswerHandlers: function(question) {
@@ -236,6 +280,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	var React = __webpack_require__(6);
+	var styles = __webpack_require__(7);
 
 	var Question = React.createClass({displayName: "Question",
 	  render: function() {
@@ -244,7 +289,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return (
 	      React.createElement("div", null, 
 	        React.createElement("h2", null, this.props.text), 
-	        clickHandlerChildren
+	        React.createElement("div", {style: styles.answers}, 
+	          clickHandlerChildren
+	        )
 	      )
 	    );
 	  },
@@ -268,11 +315,12 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	var React = __webpack_require__(6);
+	var styles = __webpack_require__(7);
 
 	var Answer = React.createClass({displayName: "Answer",
 	  render: function() {
 	    return (
-	      React.createElement("a", {onClick: this.props.onClick, style: {'display': 'block', 'margin': 5, paddingTop: 40, 'width': 100, 'height': 60, textAlign: 'center', backgroundColor: 'dodgerblue', color: 'white', 'cursor': 'pointer'}}, 
+	      React.createElement("a", {onClick: this.props.onClick, style: styles.answer}, 
 	        this.props.children
 	      )
 	    );
@@ -290,6 +338,114 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 7 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = {
+	  resultColumn: {
+	    float: 'left',
+	    width: '58%'
+	  },
+	  questionsColumn: {
+	    float: 'right',
+	    width: '40%'
+	  },
+	  answers: {
+	    display: 'flex',
+	    flexFlow: 'row wrap',
+	    justifyContent: 'flex-start',
+	    alignContent: 'flex-start',
+	    alignItems: 'flex-start',
+	    height: 320
+	  },
+	  answer: {
+	    display: 'inline-block',
+	    margin: 5,
+	    paddingTop: 65,
+	    fontSize: 20,
+	    fontWeight: 600,
+	    width: 150,
+	    height: 150,
+	    textAlign: 'center',
+	    backgroundColor: 'dodgerblue',
+	    color: 'white',
+	    cursor: 'pointer',
+	    boxSizing: 'border-box'
+	  },
+	  carTitle: {
+	    marginBottom: 0
+	  },
+	  miles: {
+	    margin: 0,
+	    marginBottom: 8,
+	    fontSize: 14
+	  },
+	  price: {
+	    marginTop: 0,
+	    fontSize: 20,
+	    color: '#2354ac'
+	  },
+	  hr: {
+	    border: 'none',
+	    backgroundColor: '#363636',
+	    height: 1
+	  },
+	  loading: {
+	    position: 'absolute',
+	    top: 0,
+	    left: 0,
+	    backgroundColor: '#2354ac',
+	    color: 'white',
+	    display: 'inline-block'
+	  }
+	}
+
+
+/***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(global) {/* jshint node:true */
+	'use strict';
+
+	// Expose `React` as a global, because the ReactIntlMixin assumes it's global.
+	var oldReact = global.React;
+	global.React = __webpack_require__(13);
+
+	// Require the lib and add all locale data to `ReactIntl`. This module will be
+	// ignored when bundling for the browser with Browserify/Webpack.
+	var ReactIntl = __webpack_require__(15);
+	__webpack_require__(14);
+
+	// Export the Mixin as the default export for back-compat with v1.0.0. This will
+	// be changed to simply re-exporting `ReactIntl` as the default export in v2.0.
+	exports = module.exports = ReactIntl.IntlMixin;
+
+	// Define non-enumerable expandos for each named export on the default export --
+	// which is the Mixin for back-compat with v1.0.0.
+	Object.keys(ReactIntl).forEach(function (namedExport) {
+	    Object.defineProperty(exports, namedExport, {
+	        enumerable: true,
+	        value     : ReactIntl[namedExport]
+	    });
+	});
+
+	// Put back `global.React` to how it was.
+	if (oldReact) {
+	    global.React = oldReact;
+	} else {
+	    // IE < 9 will throw when trying to delete something off the global object,
+	    // `window`, so this does the next best thing as sets it to `undefined`.
+	    try {
+	        delete global.React;
+	    } catch (e) {
+	        global.React = undefined;
+	    }
+	}
+	
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
+
+/***/ },
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -9498,6 +9654,3230 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	}));
 
+
+/***/ },
+/* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// style-loader: Adds some css to the DOM by adding a <style> tag
+
+	// load the styles
+	var content = __webpack_require__(11);
+	if(typeof content === 'string') content = [[module.id, content, '']];
+	// add the styles to the DOM
+	var update = __webpack_require__(12)(content, {});
+	// Hot Module Replacement
+	if(false) {
+		// When the styles change, update the <style> tags
+		module.hot.accept("!!/Users/russell/Sites/cxense-visual-search/node_modules/css-loader/index.js!/Users/russell/Sites/cxense-visual-search/node_modules/autoprefixer-loader/index.js?{browsers:[\"last 2 version\", \"> 1%\", \"ie 8\"]}!/Users/russell/Sites/cxense-visual-search/node_modules/sass-loader/index.js!/Users/russell/Sites/cxense-visual-search/src/styles/clearfix.scss", function() {
+			var newContent = require("!!/Users/russell/Sites/cxense-visual-search/node_modules/css-loader/index.js!/Users/russell/Sites/cxense-visual-search/node_modules/autoprefixer-loader/index.js?{browsers:[\"last 2 version\", \"> 1%\", \"ie 8\"]}!/Users/russell/Sites/cxense-visual-search/node_modules/sass-loader/index.js!/Users/russell/Sites/cxense-visual-search/src/styles/clearfix.scss");
+			if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
+			update(newContent);
+		});
+		// When the module is disposed, remove the <style> tags
+		module.hot.dispose(function() { update(); });
+	}
+
+/***/ },
+/* 11 */
+/***/ function(module, exports, __webpack_require__) {
+
+	exports = module.exports = __webpack_require__(16)();
+	exports.push([module.id, ".clearfix:after{content:\"\";display:table;clear:both}", ""]);
+
+/***/ },
+/* 12 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/*
+		MIT License http://www.opensource.org/licenses/mit-license.php
+		Author Tobias Koppers @sokra
+	*/
+	var stylesInDom = {},
+		memoize = function(fn) {
+			var memo;
+			return function () {
+				if (typeof memo === "undefined") memo = fn.apply(this, arguments);
+				return memo;
+			};
+		},
+		isIE9 = memoize(function() {
+			return /msie 9\b/.test(window.navigator.userAgent.toLowerCase());
+		}),
+		getHeadElement = memoize(function () {
+			return document.head || document.getElementsByTagName("head")[0];
+		}),
+		singletonElement = null,
+		singletonCounter = 0;
+
+	module.exports = function(list, options) {
+		if(false) {
+			if(typeof document !== "object") throw new Error("The style-loader cannot be used in a non-browser environment");
+		}
+
+		options = options || {};
+		// Force single-tag solution on IE9, which has a hard limit on the # of <style>
+		// tags it will allow on a page
+		if (typeof options.singleton === "undefined") options.singleton = isIE9();
+
+		var styles = listToStyles(list);
+		addStylesToDom(styles, options);
+
+		return function update(newList) {
+			var mayRemove = [];
+			for(var i = 0; i < styles.length; i++) {
+				var item = styles[i];
+				var domStyle = stylesInDom[item.id];
+				domStyle.refs--;
+				mayRemove.push(domStyle);
+			}
+			if(newList) {
+				var newStyles = listToStyles(newList);
+				addStylesToDom(newStyles, options);
+			}
+			for(var i = 0; i < mayRemove.length; i++) {
+				var domStyle = mayRemove[i];
+				if(domStyle.refs === 0) {
+					for(var j = 0; j < domStyle.parts.length; j++)
+						domStyle.parts[j]();
+					delete stylesInDom[domStyle.id];
+				}
+			}
+		};
+	}
+
+	function addStylesToDom(styles, options) {
+		for(var i = 0; i < styles.length; i++) {
+			var item = styles[i];
+			var domStyle = stylesInDom[item.id];
+			if(domStyle) {
+				domStyle.refs++;
+				for(var j = 0; j < domStyle.parts.length; j++) {
+					domStyle.parts[j](item.parts[j]);
+				}
+				for(; j < item.parts.length; j++) {
+					domStyle.parts.push(addStyle(item.parts[j], options));
+				}
+			} else {
+				var parts = [];
+				for(var j = 0; j < item.parts.length; j++) {
+					parts.push(addStyle(item.parts[j], options));
+				}
+				stylesInDom[item.id] = {id: item.id, refs: 1, parts: parts};
+			}
+		}
+	}
+
+	function listToStyles(list) {
+		var styles = [];
+		var newStyles = {};
+		for(var i = 0; i < list.length; i++) {
+			var item = list[i];
+			var id = item[0];
+			var css = item[1];
+			var media = item[2];
+			var sourceMap = item[3];
+			var part = {css: css, media: media, sourceMap: sourceMap};
+			if(!newStyles[id])
+				styles.push(newStyles[id] = {id: id, parts: [part]});
+			else
+				newStyles[id].parts.push(part);
+		}
+		return styles;
+	}
+
+	function createStyleElement() {
+		var styleElement = document.createElement("style");
+		var head = getHeadElement();
+		styleElement.type = "text/css";
+		head.appendChild(styleElement);
+		return styleElement;
+	}
+
+	function addStyle(obj, options) {
+		var styleElement, update, remove;
+
+		if (options.singleton) {
+			var styleIndex = singletonCounter++;
+			styleElement = singletonElement || (singletonElement = createStyleElement());
+			update = applyToSingletonTag.bind(null, styleElement, styleIndex, false);
+			remove = applyToSingletonTag.bind(null, styleElement, styleIndex, true);
+		} else {
+			styleElement = createStyleElement();
+			update = applyToTag.bind(null, styleElement);
+			remove = function () {
+				styleElement.parentNode.removeChild(styleElement);
+			};
+		}
+
+		update(obj);
+
+		return function updateStyle(newObj) {
+			if(newObj) {
+				if(newObj.css === obj.css && newObj.media === obj.media && newObj.sourceMap === obj.sourceMap)
+					return;
+				update(obj = newObj);
+			} else {
+				remove();
+			}
+		};
+	}
+
+	function replaceText(source, id, replacement) {
+		var boundaries = ["/** >>" + id + " **/", "/** " + id + "<< **/"];
+		var start = source.lastIndexOf(boundaries[0]);
+		var wrappedReplacement = replacement
+			? (boundaries[0] + replacement + boundaries[1])
+			: "";
+		if (source.lastIndexOf(boundaries[0]) >= 0) {
+			var end = source.lastIndexOf(boundaries[1]) + boundaries[1].length;
+			return source.slice(0, start) + wrappedReplacement + source.slice(end);
+		} else {
+			return source + wrappedReplacement;
+		}
+	}
+
+	function applyToSingletonTag(styleElement, index, remove, obj) {
+		var css = remove ? "" : obj.css;
+
+		if(styleElement.styleSheet) {
+			styleElement.styleSheet.cssText = replaceText(styleElement.styleSheet.cssText, index, css);
+		} else {
+			var cssNode = document.createTextNode(css);
+			var childNodes = styleElement.childNodes;
+			if (childNodes[index]) styleElement.removeChild(childNodes[index]);
+			if (childNodes.length) {
+				styleElement.insertBefore(cssNode, childNodes[index]);
+			} else {
+				styleElement.appendChild(cssNode);
+			}
+		}
+	}
+
+	function applyToTag(styleElement, obj) {
+		var css = obj.css;
+		var media = obj.media;
+		var sourceMap = obj.sourceMap;
+
+		if(sourceMap && typeof btoa === "function") {
+			try {
+				css += "\n/*# sourceMappingURL=data:application/json;base64," + btoa(JSON.stringify(sourceMap)) + " */";
+				css = "@import url(\"data:text/css;base64," + btoa(css) + "\")";
+			} catch(e) {}
+		}
+
+		if(media) {
+			styleElement.setAttribute("media", media)
+		}
+
+		if(styleElement.styleSheet) {
+			styleElement.styleSheet.cssText = css;
+		} else {
+			while(styleElement.firstChild) {
+				styleElement.removeChild(styleElement.firstChild);
+			}
+			styleElement.appendChild(document.createTextNode(css));
+		}
+	}
+
+
+/***/ },
+/* 13 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_13__;
+
+/***/ },
+/* 14 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* (ignored) */
+
+/***/ },
+/* 15 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	exports.__addLocaleData = __addLocaleData;
+	var intl$messageformat$$ = __webpack_require__(25), intl$relativeformat$$ = __webpack_require__(26), src$en$$ = __webpack_require__(17), src$mixin$$ = __webpack_require__(18), src$components$date$$ = __webpack_require__(19), src$components$time$$ = __webpack_require__(20), src$components$relative$$ = __webpack_require__(21), src$components$number$$ = __webpack_require__(22), src$components$message$$ = __webpack_require__(23), src$components$html$message$$ = __webpack_require__(24);
+	function __addLocaleData(data) {
+	    intl$messageformat$$["default"].__addLocaleData(data);
+	    intl$relativeformat$$["default"].__addLocaleData(data);
+	}
+
+	__addLocaleData(src$en$$["default"]);
+	exports.IntlMixin = src$mixin$$["default"], exports.FormattedDate = src$components$date$$["default"], exports.FormattedTime = src$components$time$$["default"], exports.FormattedRelative = src$components$relative$$["default"], exports.FormattedNumber = src$components$number$$["default"], exports.FormattedMessage = src$components$message$$["default"], exports.FormattedHTMLMessage = src$components$html$message$$["default"];
+
+	//# sourceMappingURL=react-intl.js.map
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = function() {
+		var list = [];
+		list.toString = function toString() {
+			var result = [];
+			for(var i = 0; i < this.length; i++) {
+				var item = this[i];
+				if(item[2]) {
+					result.push("@media " + item[2] + "{" + item[1] + "}");
+				} else {
+					result.push(item[1]);
+				}
+			}
+			return result.join("");
+		};
+		return list;
+	}
+
+/***/ },
+/* 17 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	exports["default"] = {"locale":"en","pluralRuleFunction":function (n) {var i=Math.floor(Math.abs(n)),v=n.toString().replace(/^[^.]*\.?/,"").length;n=Math.floor(n);if(i===1&&v===0)return"one";return"other";},"fields":{"second":{"displayName":"Second","relative":{"0":"now"},"relativeTime":{"future":{"one":"in {0} second","other":"in {0} seconds"},"past":{"one":"{0} second ago","other":"{0} seconds ago"}}},"minute":{"displayName":"Minute","relativeTime":{"future":{"one":"in {0} minute","other":"in {0} minutes"},"past":{"one":"{0} minute ago","other":"{0} minutes ago"}}},"hour":{"displayName":"Hour","relativeTime":{"future":{"one":"in {0} hour","other":"in {0} hours"},"past":{"one":"{0} hour ago","other":"{0} hours ago"}}},"day":{"displayName":"Day","relative":{"0":"today","1":"tomorrow","-1":"yesterday"},"relativeTime":{"future":{"one":"in {0} day","other":"in {0} days"},"past":{"one":"{0} day ago","other":"{0} days ago"}}},"month":{"displayName":"Month","relative":{"0":"this month","1":"next month","-1":"last month"},"relativeTime":{"future":{"one":"in {0} month","other":"in {0} months"},"past":{"one":"{0} month ago","other":"{0} months ago"}}},"year":{"displayName":"Year","relative":{"0":"this year","1":"next year","-1":"last year"},"relativeTime":{"future":{"one":"in {0} year","other":"in {0} years"},"past":{"one":"{0} year ago","other":"{0} years ago"}}}}};
+
+	//# sourceMappingURL=en.js.map
+
+/***/ },
+/* 18 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$react$$ = __webpack_require__(27), intl$messageformat$$ = __webpack_require__(25), intl$relativeformat$$ = __webpack_require__(26), intl$format$cache$$ = __webpack_require__(29);
+
+	// -----------------------------------------------------------------------------
+
+	var typesSpec = {
+	    locales: src$react$$["default"].PropTypes.oneOfType([
+	        src$react$$["default"].PropTypes.string,
+	        src$react$$["default"].PropTypes.array
+	    ]),
+
+	    formats : src$react$$["default"].PropTypes.object,
+	    messages: src$react$$["default"].PropTypes.object
+	};
+
+	function assertIsDate(date, errMsg) {
+	    // Determine if the `date` is valid by checking if it is finite, which is
+	    // the same way that `Intl.DateTimeFormat#format()` checks.
+	    if (!isFinite(date)) {
+	        throw new TypeError(errMsg);
+	    }
+	}
+
+	exports["default"] = {
+	    statics: {
+	        filterFormatOptions: function (obj, defaults) {
+	            if (!defaults) { defaults = {}; }
+
+	            return (this.formatOptions || []).reduce(function (opts, name) {
+	                if (obj.hasOwnProperty(name)) {
+	                    opts[name] = obj[name];
+	                } else if (defaults.hasOwnProperty(name)) {
+	                    opts[name] = defaults[name];
+	                }
+
+	                return opts;
+	            }, {});
+	        }
+	    },
+
+	    propsTypes       : typesSpec,
+	    contextTypes     : typesSpec,
+	    childContextTypes: typesSpec,
+
+	    getNumberFormat  : intl$format$cache$$["default"](Intl.NumberFormat),
+	    getDateTimeFormat: intl$format$cache$$["default"](Intl.DateTimeFormat),
+	    getMessageFormat : intl$format$cache$$["default"](intl$messageformat$$["default"]),
+	    getRelativeFormat: intl$format$cache$$["default"](intl$relativeformat$$["default"]),
+
+	    getChildContext: function () {
+	        var context = this.context;
+	        var props   = this.props;
+
+	        return {
+	            locales:  props.locales  || context.locales,
+	            formats:  props.formats  || context.formats,
+	            messages: props.messages || context.messages
+	        };
+	    },
+
+	    formatDate: function (date, options) {
+	        date = new Date(date);
+	        assertIsDate(date, 'A date or timestamp must be provided to formatDate()');
+	        return this._format('date', date, options);
+	    },
+
+	    formatTime: function (date, options) {
+	        date = new Date(date);
+	        assertIsDate(date, 'A date or timestamp must be provided to formatTime()');
+	        return this._format('time', date, options);
+	    },
+
+	    formatRelative: function (date, options) {
+	        date = new Date(date);
+	        assertIsDate(date, 'A date or timestamp must be provided to formatRelative()');
+	        return this._format('relative', date, options);
+	    },
+
+	    formatNumber: function (num, options) {
+	        return this._format('number', num, options);
+	    },
+
+	    formatMessage: function (message, values) {
+	        var locales = this.props.locales || this.context.locales;
+	        var formats = this.props.formats || this.context.formats;
+
+	        // When `message` is a function, assume it's an IntlMessageFormat
+	        // instance's `format()` method passed by reference, and call it. This
+	        // is possible because its `this` will be pre-bound to the instance.
+	        if (typeof message === 'function') {
+	            return message(values);
+	        }
+
+	        if (typeof message === 'string') {
+	            message = this.getMessageFormat(message, locales, formats);
+	        }
+
+	        return message.format(values);
+	    },
+
+	    getIntlMessage: function (path) {
+	        var messages  = this.props.messages || this.context.messages;
+	        var pathParts = path.split('.');
+
+	        var message;
+
+	        try {
+	            message = pathParts.reduce(function (obj, pathPart) {
+	                return obj[pathPart];
+	            }, messages);
+	        } finally {
+	            if (message === undefined) {
+	                throw new ReferenceError('Could not find Intl message: ' + path);
+	            }
+	        }
+
+	        return message;
+	    },
+
+	    getNamedFormat: function (type, name) {
+	        var formats = this.props.formats || this.context.formats;
+	        var format  = null;
+
+	        try {
+	            format = formats[type][name];
+	        } finally {
+	            if (!format) {
+	                throw new ReferenceError(
+	                    'No ' + type + ' format named: ' + name
+	                );
+	            }
+	        }
+
+	        return format;
+	    },
+
+	    _format: function (type, value, options) {
+	        var locales = this.props.locales || this.context.locales;
+
+	        if (options && typeof options === 'string') {
+	            options = this.getNamedFormat(type, options);
+	        }
+
+	        switch(type) {
+	            case 'date':
+	            case 'time':
+	                return this.getDateTimeFormat(locales, options).format(value);
+	            case 'number':
+	                return this.getNumberFormat(locales, options).format(value);
+	            case 'relative':
+	                return this.getRelativeFormat(locales, options).format(value);
+	            default:
+	                throw new Error('Unrecognized format type: ' + type);
+	        }
+	    }
+	};
+
+	//# sourceMappingURL=mixin.js.map
+
+/***/ },
+/* 19 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$react$$ = __webpack_require__(27), src$mixin$$ = __webpack_require__(18);
+
+	var FormattedDate = src$react$$["default"].createClass({
+	    displayName: 'FormattedDate',
+	    mixins     : [src$mixin$$["default"]],
+
+	    statics: {
+	        formatOptions: [
+	            'localeMatcher', 'timeZone', 'hour12', 'formatMatcher', 'weekday',
+	            'era', 'year', 'month', 'day', 'hour', 'minute', 'second',
+	            'timeZoneName'
+	        ]
+	    },
+
+	    propTypes: {
+	        format: src$react$$["default"].PropTypes.string,
+	        value : src$react$$["default"].PropTypes.any.isRequired
+	    },
+
+	    render: function () {
+	        var props    = this.props;
+	        var value    = props.value;
+	        var format   = props.format;
+	        var defaults = format && this.getNamedFormat('date', format);
+	        var options  = FormattedDate.filterFormatOptions(props, defaults);
+
+	        return src$react$$["default"].DOM.span(null, this.formatDate(value, options));
+	    }
+	});
+
+	exports["default"] = FormattedDate;
+
+	//# sourceMappingURL=date.js.map
+
+/***/ },
+/* 20 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$react$$ = __webpack_require__(27), src$mixin$$ = __webpack_require__(18);
+
+	var FormattedTime = src$react$$["default"].createClass({
+	    displayName: 'FormattedTime',
+	    mixins     : [src$mixin$$["default"]],
+
+	    statics: {
+	        formatOptions: [
+	            'localeMatcher', 'timeZone', 'hour12', 'formatMatcher', 'weekday',
+	            'era', 'year', 'month', 'day', 'hour', 'minute', 'second',
+	            'timeZoneName'
+	        ]
+	    },
+
+	    propTypes: {
+	        format: src$react$$["default"].PropTypes.string,
+	        value : src$react$$["default"].PropTypes.any.isRequired
+	    },
+
+	    render: function () {
+	        var props    = this.props;
+	        var value    = props.value;
+	        var format   = props.format;
+	        var defaults = format && this.getNamedFormat('time', format);
+	        var options  = FormattedTime.filterFormatOptions(props, defaults);
+
+	        return src$react$$["default"].DOM.span(null, this.formatTime(value, options));
+	    }
+	});
+
+	exports["default"] = FormattedTime;
+
+	//# sourceMappingURL=time.js.map
+
+/***/ },
+/* 21 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$react$$ = __webpack_require__(27), src$mixin$$ = __webpack_require__(18);
+
+	var FormattedRelative = src$react$$["default"].createClass({
+	    displayName: 'FormattedRelative',
+	    mixins     : [src$mixin$$["default"]],
+
+	    statics: {
+	        formatOptions: [
+	            'style', 'units'
+	        ]
+	    },
+
+	    propTypes: {
+	        format: src$react$$["default"].PropTypes.string,
+	        value : src$react$$["default"].PropTypes.any.isRequired
+	    },
+
+	    render: function () {
+	        var props    = this.props;
+	        var value    = props.value;
+	        var format   = props.format;
+	        var defaults = format && this.getNamedFormat('relative', format);
+	        var options  = FormattedRelative.filterFormatOptions(props, defaults);
+
+	        return src$react$$["default"].DOM.span(null, this.formatRelative(value, options));
+	    }
+	});
+
+	exports["default"] = FormattedRelative;
+
+	//# sourceMappingURL=relative.js.map
+
+/***/ },
+/* 22 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$react$$ = __webpack_require__(27), src$mixin$$ = __webpack_require__(18);
+
+	var FormattedNumber = src$react$$["default"].createClass({
+	    displayName: 'FormattedNumber',
+	    mixins     : [src$mixin$$["default"]],
+
+	    statics: {
+	        formatOptions: [
+	            'localeMatcher', 'style', 'currency', 'currencyDisplay',
+	            'useGrouping', 'minimumIntegerDigits', 'minimumFractionDigits',
+	            'maximumFractionDigits', 'minimumSignificantDigits',
+	            'maximumSignificantDigits'
+	        ]
+	    },
+
+	    propTypes: {
+	        format: src$react$$["default"].PropTypes.string,
+	        value : src$react$$["default"].PropTypes.any.isRequired
+	    },
+
+	    render: function () {
+	        var props    = this.props;
+	        var value    = props.value;
+	        var format   = props.format;
+	        var defaults = format && this.getNamedFormat('number', format);
+	        var options  = FormattedNumber.filterFormatOptions(props, defaults);
+
+	        return src$react$$["default"].DOM.span(null, this.formatNumber(value, options));
+	    }
+	});
+
+	exports["default"] = FormattedNumber;
+
+	//# sourceMappingURL=number.js.map
+
+/***/ },
+/* 23 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$react$$ = __webpack_require__(27), src$mixin$$ = __webpack_require__(18);
+
+	var FormattedMessage = src$react$$["default"].createClass({
+	    displayName: 'FormattedMessage',
+	    mixins     : [src$mixin$$["default"]],
+
+	    propTypes: {
+	        tagName: src$react$$["default"].PropTypes.string,
+	        message: src$react$$["default"].PropTypes.string.isRequired
+	    },
+
+	    getDefaultProps: function () {
+	        return {tagName: 'span'};
+	    },
+
+	    render: function () {
+	        var props   = this.props;
+	        var tagName = props.tagName;
+	        var message = props.message;
+
+	        // Creates a token with a random guid that should not be guessable or
+	        // conflict with other parts of the `message` string.
+	        var guid       = Math.floor(Math.random() * 0x10000000000).toString(16);
+	        var tokenRegex = new RegExp('(@__ELEMENT-' + guid + '-\\d+__@)', 'g');
+	        var elements   = {};
+
+	        var generateToken = (function () {
+	            var counter = 0;
+	            return function () {
+	                return '@__ELEMENT-' + guid + '-' + (counter += 1) + '__@';
+	            };
+	        }());
+
+	        // Iterates over the `props` to keep track of any React Element values
+	        // so they can be represented by the `token` as a placeholder when the
+	        // `message` is formatted. This allows the formatted message to then be
+	        // broken-up into parts with references to the React Elements inserted
+	        // back in.
+	        var values = Object.keys(props).reduce(function (values, name) {
+	            var value = props[name];
+	            var token;
+
+	            if (src$react$$["default"].isValidElement(value)) {
+	                token           = generateToken();
+	                values[name]    = token;
+	                elements[token] = value;
+	            } else {
+	                values[name] = value;
+	            }
+
+	            return values;
+	        }, {});
+
+	        // Formats the `message` with the `values`, including the `token`
+	        // placeholders for React Element values.
+	        var formattedMessage = this.formatMessage(message, values);
+
+	        // Split the message into parts so the React Element values captured
+	        // above can be inserted back into the rendered message. This
+	        // approach allows messages to render with React Elements while keeping
+	        // React's virtual diffing working properly.
+	        var children = formattedMessage.split(tokenRegex)
+	            .filter(function (part) {
+	                // Ignore empty string parts.
+	                return !!part;
+	            })
+	            .map(function (part) {
+	                // When the `part` is a token, get a ref to the React Element.
+	                return elements[part] || part;
+	            });
+
+	        var elementArgs = [tagName, null].concat(children);
+	        return src$react$$["default"].createElement.apply(null, elementArgs);
+	    }
+	});
+
+	exports["default"] = FormattedMessage;
+
+	//# sourceMappingURL=message.js.map
+
+/***/ },
+/* 24 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$react$$ = __webpack_require__(27), src$escape$$ = __webpack_require__(28), src$mixin$$ = __webpack_require__(18);
+
+	var FormattedHTMLMessage = src$react$$["default"].createClass({
+	    displayName: 'FormattedHTMLMessage',
+	    mixins     : [src$mixin$$["default"]],
+
+	    propTypes: {
+	        tagName: src$react$$["default"].PropTypes.string,
+	        message: src$react$$["default"].PropTypes.string.isRequired
+	    },
+
+	    getDefaultProps: function () {
+	        return {tagName: 'span'};
+	    },
+
+	    render: function () {
+	        var props   = this.props;
+	        var tagName = props.tagName;
+	        var message = props.message;
+
+	        // Process all the props before they are used as values when formatting
+	        // the ICU Message string. Since the formatted message will be injected
+	        // via `innerHTML`, all String-based values need to be HTML-escaped. Any
+	        // React Elements that are passed as props will be rendered to a static
+	        // markup string that is presumed to be safe.
+	        var values = Object.keys(props).reduce(function (values, name) {
+	            var value = props[name];
+
+	            if (typeof value === 'string') {
+	                value = src$escape$$["default"](value);
+	            } else if (src$react$$["default"].isValidElement(value)) {
+	                value = src$react$$["default"].renderToStaticMarkup(value);
+	            }
+
+	            values[name] = value;
+	            return values;
+	        }, {});
+
+	        // Since the message presumably has HTML in it, we need to set
+	        // `innerHTML` in order for it to be rendered and not escaped by React.
+	        // To be safe, all string prop values were escaped before formatting the
+	        // message. It is assumed that the message is not UGC, and came from
+	        // the developer making it more like a template.
+	        //
+	        // Note: There's a perf impact of using this component since there's no
+	        // way for React to do its virtual DOM diffing.
+	        return src$react$$["default"].DOM[tagName]({
+	            dangerouslySetInnerHTML: {
+	                __html: this.formatMessage(message, values)
+	            }
+	        });
+	    }
+	});
+
+	exports["default"] = FormattedHTMLMessage;
+
+	//# sourceMappingURL=html-message.js.map
+
+/***/ },
+/* 25 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* jshint node:true */
+
+	'use strict';
+
+	var IntlMessageFormat = __webpack_require__(31)['default'];
+
+	// Add all locale data to `IntlMessageFormat`. This module will be ignored when
+	// bundling for the browser with Browserify/Webpack.
+	__webpack_require__(30);
+
+	// Re-export `IntlMessageFormat` as the CommonJS default exports with all the
+	// locale data registered, and with English set as the default locale. Define
+	// the `default` prop for use with other compiled ES6 Modules.
+	exports = module.exports = IntlMessageFormat;
+	exports['default'] = exports;
+
+
+/***/ },
+/* 26 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* jshint node:true */
+
+	'use strict';
+
+	var IntlRelativeFormat = __webpack_require__(33)['default'];
+
+	// Add all locale data to `IntlRelativeFormat`. This module will be ignored when
+	// bundling for the browser with Browserify/Webpack.
+	__webpack_require__(32);
+
+	// Re-export `IntlRelativeFormat` as the CommonJS default exports with all the
+	// locale data registered, and with English set as the default locale. Define
+	// the `default` prop for use with other compiled ES6 Modules.
+	exports = module.exports = IntlRelativeFormat;
+	exports['default'] = exports;
+
+
+/***/ },
+/* 27 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	exports["default"] = React;
+
+	//# sourceMappingURL=react.js.map
+
+/***/ },
+/* 28 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	/* jshint esnext:true */
+
+	/*
+	HTML escaping implementation is the same as React's (on purpose.) Therefore, it
+	has the following Copyright and Licensing:
+
+	Copyright 2013-2014, Facebook, Inc.
+	All rights reserved.
+
+	This source code is licensed under the BSD-style license found in the LICENSE
+	file in the root directory of React's source tree.
+	*/
+	var ESCAPED_CHARS = {
+	    '&' : '&amp;',
+	    '>' : '&gt;',
+	    '<' : '&lt;',
+	    '"' : '&quot;',
+	    '\'': '&#x27;'
+	};
+
+	var UNSAFE_CHARS_REGEX = /[&><"']/g;
+
+	exports["default"] = function (str) {
+	    return ('' + str).replace(UNSAFE_CHARS_REGEX, function (match) {
+	        return ESCAPED_CHARS[match];
+	    });
+	};
+
+	//# sourceMappingURL=escape.js.map
+
+/***/ },
+/* 29 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	exports = module.exports = __webpack_require__(34)['default'];
+	exports['default'] = exports;
+
+
+/***/ },
+/* 30 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* (ignored) */
+
+/***/ },
+/* 31 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$core$$ = __webpack_require__(35), src$en$$ = __webpack_require__(36);
+
+	src$core$$["default"].__addLocaleData(src$en$$["default"]);
+	src$core$$["default"].defaultLocale = 'en';
+
+	exports["default"] = src$core$$["default"];
+
+	//# sourceMappingURL=main.js.map
+
+/***/ },
+/* 32 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* (ignored) */
+
+/***/ },
+/* 33 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$core$$ = __webpack_require__(37), src$en$$ = __webpack_require__(38);
+
+	src$core$$["default"].__addLocaleData(src$en$$["default"]);
+	src$core$$["default"].defaultLocale = 'en';
+
+	exports["default"] = src$core$$["default"];
+
+	//# sourceMappingURL=main.js.map
+
+/***/ },
+/* 34 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$es5$$ = __webpack_require__(39);
+	exports["default"] = createFormatCache;
+
+	// -----------------------------------------------------------------------------
+
+	function createFormatCache(FormatConstructor) {
+	    var cache = src$es5$$.objCreate(null);
+
+	    return function () {
+	        var args    = Array.prototype.slice.call(arguments);
+	        var cacheId = getCacheId(args);
+	        var format  = cacheId && cache[cacheId];
+
+	        if (!format) {
+	            format = src$es5$$.objCreate(FormatConstructor.prototype);
+	            FormatConstructor.apply(format, args);
+
+	            if (cacheId) {
+	                cache[cacheId] = format;
+	            }
+	        }
+
+	        return format;
+	    };
+	}
+
+	// -- Utilities ----------------------------------------------------------------
+
+	function getCacheId(inputs) {
+	    // When JSON is not available in the runtime, we will not create a cache id.
+	    if (typeof JSON === 'undefined') { return; }
+
+	    var cacheId = [];
+
+	    var i, len, input;
+
+	    for (i = 0, len = inputs.length; i < len; i += 1) {
+	        input = inputs[i];
+
+	        if (input && typeof input === 'object') {
+	            cacheId.push(orderedProps(input));
+	        } else {
+	            cacheId.push(input);
+	        }
+	    }
+
+	    return JSON.stringify(cacheId);
+	}
+
+	function orderedProps(obj) {
+	    var props = [],
+	        keys  = [];
+
+	    var key, i, len, prop;
+
+	    for (key in obj) {
+	        if (obj.hasOwnProperty(key)) {
+	            keys.push(key);
+	        }
+	    }
+
+	    var orderedKeys = keys.sort();
+
+	    for (i = 0, len = orderedKeys.length; i < len; i += 1) {
+	        key  = orderedKeys[i];
+	        prop = {};
+
+	        prop[key] = obj[key];
+	        props[i]  = prop;
+	    }
+
+	    return props;
+	}
+
+	//# sourceMappingURL=memoizer.js.map
+
+/***/ },
+/* 35 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$utils$$ = __webpack_require__(40), src$es5$$ = __webpack_require__(41), src$compiler$$ = __webpack_require__(42), intl$messageformat$parser$$ = __webpack_require__(45);
+	exports["default"] = MessageFormat;
+
+	// -- MessageFormat --------------------------------------------------------
+
+	function MessageFormat(message, locales, formats) {
+	    // Parse string messages into an AST.
+	    var ast = typeof message === 'string' ?
+	            MessageFormat.__parse(message) : message;
+
+	    if (!(ast && ast.type === 'messageFormatPattern')) {
+	        throw new TypeError('A message must be provided as a String or AST.');
+	    }
+
+	    // Creates a new object with the specified `formats` merged with the default
+	    // formats.
+	    formats = this._mergeFormats(MessageFormat.formats, formats);
+
+	    // Defined first because it's used to build the format pattern.
+	    src$es5$$.defineProperty(this, '_locale',  {value: this._resolveLocale(locales)});
+
+	    var pluralFn = MessageFormat.__localeData__[this._locale].pluralRuleFunction;
+
+	    // Compile the `ast` to a pattern that is highly optimized for repeated
+	    // `format()` invocations. **Note:** This passes the `locales` set provided
+	    // to the constructor instead of just the resolved locale.
+	    var pattern = this._compilePattern(ast, locales, formats, pluralFn);
+
+	    // "Bind" `format()` method to `this` so it can be passed by reference like
+	    // the other `Intl` APIs.
+	    var messageFormat = this;
+	    this.format = function (values) {
+	        return messageFormat._format(pattern, values);
+	    };
+	}
+
+	// Default format options used as the prototype of the `formats` provided to the
+	// constructor. These are used when constructing the internal Intl.NumberFormat
+	// and Intl.DateTimeFormat instances.
+	src$es5$$.defineProperty(MessageFormat, 'formats', {
+	    enumerable: true,
+
+	    value: {
+	        number: {
+	            'currency': {
+	                style: 'currency'
+	            },
+
+	            'percent': {
+	                style: 'percent'
+	            }
+	        },
+
+	        date: {
+	            'short': {
+	                month: 'numeric',
+	                day  : 'numeric',
+	                year : '2-digit'
+	            },
+
+	            'medium': {
+	                month: 'short',
+	                day  : 'numeric',
+	                year : 'numeric'
+	            },
+
+	            'long': {
+	                month: 'long',
+	                day  : 'numeric',
+	                year : 'numeric'
+	            },
+
+	            'full': {
+	                weekday: 'long',
+	                month  : 'long',
+	                day    : 'numeric',
+	                year   : 'numeric'
+	            }
+	        },
+
+	        time: {
+	            'short': {
+	                hour  : 'numeric',
+	                minute: 'numeric'
+	            },
+
+	            'medium':  {
+	                hour  : 'numeric',
+	                minute: 'numeric',
+	                second: 'numeric'
+	            },
+
+	            'long': {
+	                hour        : 'numeric',
+	                minute      : 'numeric',
+	                second      : 'numeric',
+	                timeZoneName: 'short'
+	            },
+
+	            'full': {
+	                hour        : 'numeric',
+	                minute      : 'numeric',
+	                second      : 'numeric',
+	                timeZoneName: 'short'
+	            }
+	        }
+	    }
+	});
+
+	// Define internal private properties for dealing with locale data.
+	src$es5$$.defineProperty(MessageFormat, '__localeData__', {value: src$es5$$.objCreate(null)});
+	src$es5$$.defineProperty(MessageFormat, '__addLocaleData', {value: function (data) {
+	    if (!(data && data.locale)) {
+	        throw new Error(
+	            'Locale data provided to IntlMessageFormat is missing a ' +
+	            '`locale` property'
+	        );
+	    }
+
+	    if (!data.pluralRuleFunction) {
+	        throw new Error(
+	            'Locale data provided to IntlMessageFormat is missing a ' +
+	            '`pluralRuleFunction` property'
+	        );
+	    }
+
+	    // Message format locale data only requires the first part of the tag.
+	    var locale = data.locale.toLowerCase().split('-')[0];
+
+	    MessageFormat.__localeData__[locale] = data;
+	}});
+
+	// Defines `__parse()` static method as an exposed private.
+	src$es5$$.defineProperty(MessageFormat, '__parse', {value: intl$messageformat$parser$$["default"].parse});
+
+	// Define public `defaultLocale` property which defaults to English, but can be
+	// set by the developer.
+	src$es5$$.defineProperty(MessageFormat, 'defaultLocale', {
+	    enumerable: true,
+	    writable  : true,
+	    value     : undefined
+	});
+
+	MessageFormat.prototype.resolvedOptions = function () {
+	    // TODO: Provide anything else?
+	    return {
+	        locale: this._locale
+	    };
+	};
+
+	MessageFormat.prototype._compilePattern = function (ast, locales, formats, pluralFn) {
+	    var compiler = new src$compiler$$["default"](locales, formats, pluralFn);
+	    return compiler.compile(ast);
+	};
+
+	MessageFormat.prototype._format = function (pattern, values) {
+	    var result = '',
+	        i, len, part, id, value;
+
+	    for (i = 0, len = pattern.length; i < len; i += 1) {
+	        part = pattern[i];
+
+	        // Exist early for string parts.
+	        if (typeof part === 'string') {
+	            result += part;
+	            continue;
+	        }
+
+	        id = part.id;
+
+	        // Enforce that all required values are provided by the caller.
+	        if (!(values && src$utils$$.hop.call(values, id))) {
+	            throw new Error('A value must be provided for: ' + id);
+	        }
+
+	        value = values[id];
+
+	        // Recursively format plural and select parts' option — which can be a
+	        // nested pattern structure. The choosing of the option to use is
+	        // abstracted-by and delegated-to the part helper object.
+	        if (part.options) {
+	            result += this._format(part.getOption(value), values);
+	        } else {
+	            result += part.format(value);
+	        }
+	    }
+
+	    return result;
+	};
+
+	MessageFormat.prototype._mergeFormats = function (defaults, formats) {
+	    var mergedFormats = {},
+	        type, mergedType;
+
+	    for (type in defaults) {
+	        if (!src$utils$$.hop.call(defaults, type)) { continue; }
+
+	        mergedFormats[type] = mergedType = src$es5$$.objCreate(defaults[type]);
+
+	        if (formats && src$utils$$.hop.call(formats, type)) {
+	            src$utils$$.extend(mergedType, formats[type]);
+	        }
+	    }
+
+	    return mergedFormats;
+	};
+
+	MessageFormat.prototype._resolveLocale = function (locales) {
+	    if (!locales) {
+	        locales = MessageFormat.defaultLocale;
+	    }
+
+	    if (typeof locales === 'string') {
+	        locales = [locales];
+	    }
+
+	    var localeData = MessageFormat.__localeData__;
+	    var i, len, locale;
+
+	    for (i = 0, len = locales.length; i < len; i += 1) {
+	        // We just need the root part of the langage tag.
+	        locale = locales[i].split('-')[0].toLowerCase();
+
+	        // Validate that the langage tag is structurally valid.
+	        if (!/[a-z]{2,3}/.test(locale)) {
+	            throw new Error(
+	                'Language tag provided to IntlMessageFormat is not ' +
+	                'structrually valid: ' + locale
+	            );
+	        }
+
+	        // Return the first locale for which we have CLDR data registered.
+	        if (src$utils$$.hop.call(localeData, locale)) {
+	            return locale;
+	        }
+	    }
+
+	    throw new Error(
+	        'No locale data has been added to IntlMessageFormat for: ' +
+	        locales.join(', ')
+	    );
+	};
+
+	//# sourceMappingURL=core.js.map
+
+/***/ },
+/* 36 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	exports["default"] = {"locale":"en","pluralRuleFunction":function (n) {var i=Math.floor(Math.abs(n)),v=n.toString().replace(/^[^.]*\.?/,"").length;n=Math.floor(n);if(i===1&&v===0)return"one";return"other";}};
+
+	//# sourceMappingURL=en.js.map
+
+/***/ },
+/* 37 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$es5$$ = __webpack_require__(43), intl$messageformat$$ = __webpack_require__(25), src$diff$$ = __webpack_require__(44);
+	exports["default"] = RelativeFormat;
+
+	// -----------------------------------------------------------------------------
+
+	var FIELDS = ['second', 'minute', 'hour', 'day', 'month', 'year'];
+	var STYLES = ['best fit', 'numeric'];
+
+	// -- RelativeFormat -----------------------------------------------------------
+
+	function RelativeFormat(locales, options) {
+	    options = options || {};
+
+	    // Make a copy of `locales` if it's an array, so that it doesn't change
+	    // since it's used lazily.
+	    if (src$es5$$.isArray(locales)) {
+	        locales = locales.concat();
+	    }
+
+	    src$es5$$.defineProperty(this, '_locale', {value: this._resolveLocale(locales)});
+	    src$es5$$.defineProperty(this, '_locales', {value: locales});
+	    src$es5$$.defineProperty(this, '_options', {value: {
+	        style: this._resolveStyle(options.style),
+	        units: this._isValidUnits(options.units) && options.units
+	    }});
+
+	    src$es5$$.defineProperty(this, '_messages', {value: src$es5$$.objCreate(null)});
+
+	    // "Bind" `format()` method to `this` so it can be passed by reference like
+	    // the other `Intl` APIs.
+	    var relativeFormat = this;
+	    this.format = function format(date) {
+	        return relativeFormat._format(date);
+	    };
+	}
+
+	// Define internal private properties for dealing with locale data.
+	src$es5$$.defineProperty(RelativeFormat, '__localeData__', {value: src$es5$$.objCreate(null)});
+	src$es5$$.defineProperty(RelativeFormat, '__addLocaleData', {value: function (data) {
+	    if (!(data && data.locale)) {
+	        throw new Error(
+	            'Locale data provided to IntlRelativeFormat is missing a ' +
+	            '`locale` property value'
+	        );
+	    }
+
+	    if (!data.fields) {
+	        throw new Error(
+	            'Locale data provided to IntlRelativeFormat is missing a ' +
+	            '`fields` property value'
+	        );
+	    }
+
+	    // Add data to IntlMessageFormat.
+	    intl$messageformat$$["default"].__addLocaleData(data);
+
+	    // Relative format locale data only requires the first part of the tag.
+	    var locale = data.locale.toLowerCase().split('-')[0];
+
+	    RelativeFormat.__localeData__[locale] = data;
+	}});
+
+	// Define public `defaultLocale` property which can be set by the developer, or
+	// it will be set when the first RelativeFormat instance is created by leveraging
+	// the resolved locale from `Intl`.
+	src$es5$$.defineProperty(RelativeFormat, 'defaultLocale', {
+	    enumerable: true,
+	    writable  : true,
+	    value     : undefined
+	});
+
+	// Define public `thresholds` property which can be set by the developer, and
+	// defaults to relative time thresholds from moment.js.
+	src$es5$$.defineProperty(RelativeFormat, 'thresholds', {
+	    enumerable: true,
+
+	    value: {
+	        second: 45,  // seconds to minute
+	        minute: 45,  // minutes to hour
+	        hour  : 22,  // hours to day
+	        day   : 26,  // days to month
+	        month : 11   // months to year
+	    }
+	});
+
+	RelativeFormat.prototype.resolvedOptions = function () {
+	    return {
+	        locale: this._locale,
+	        style : this._options.style,
+	        units : this._options.units
+	    };
+	};
+
+	RelativeFormat.prototype._compileMessage = function (units) {
+	    // `this._locales` is the original set of locales the user specificed to the
+	    // constructor, while `this._locale` is the resolved root locale.
+	    var locales        = this._locales;
+	    var resolvedLocale = this._locale;
+
+	    var localeData   = RelativeFormat.__localeData__;
+	    var field        = localeData[resolvedLocale].fields[units];
+	    var relativeTime = field.relativeTime;
+	    var future       = '';
+	    var past         = '';
+	    var i;
+
+	    for (i in relativeTime.future) {
+	        if (relativeTime.future.hasOwnProperty(i)) {
+	            future += ' ' + i + ' {' +
+	                relativeTime.future[i].replace('{0}', '#') + '}';
+	        }
+	    }
+
+	    for (i in relativeTime.past) {
+	        if (relativeTime.past.hasOwnProperty(i)) {
+	            past += ' ' + i + ' {' +
+	                relativeTime.past[i].replace('{0}', '#') + '}';
+	        }
+	    }
+
+	    var message = '{when, select, future {{0, plural, ' + future + '}}' +
+	                                 'past {{0, plural, ' + past + '}}}';
+
+	    // Create the synthetic IntlMessageFormat instance using the original
+	    // locales value specified by the user when constructing the the parent
+	    // IntlRelativeFormat instance.
+	    return new intl$messageformat$$["default"](message, locales);
+	};
+
+	RelativeFormat.prototype._format = function (date) {
+	    var now = src$es5$$.dateNow();
+
+	    if (date === undefined) {
+	        date = now;
+	    }
+
+	    // Determine if the `date` is valid, and throw a similar error to what
+	    // `Intl.DateTimeFormat#format()` would throw.
+	    if (!isFinite(date)) {
+	        throw new RangeError(
+	            'The date value provided to IntlRelativeFormat#format() is not ' +
+	            'in valid range.'
+	        );
+	    }
+
+	    var diffReport  = src$diff$$["default"](now, date);
+	    var units       = this._options.units || this._selectUnits(diffReport);
+	    var diffInUnits = diffReport[units];
+
+	    if (this._options.style !== 'numeric') {
+	        var relativeUnits = this._resolveRelativeUnits(diffInUnits, units);
+	        if (relativeUnits) {
+	            return relativeUnits;
+	        }
+	    }
+
+	    return this._resolveMessage(units).format({
+	        '0' : Math.abs(diffInUnits),
+	        when: diffInUnits < 0 ? 'past' : 'future'
+	    });
+	};
+
+	RelativeFormat.prototype._isValidUnits = function (units) {
+	    if (!units || src$es5$$.arrIndexOf.call(FIELDS, units) >= 0) {
+	        return true;
+	    }
+
+	    if (typeof units === 'string') {
+	        var suggestion = /s$/.test(units) && units.substr(0, units.length - 1);
+	        if (suggestion && src$es5$$.arrIndexOf.call(FIELDS, suggestion) >= 0) {
+	            throw new Error(
+	                '"' + units + '" is not a valid IntlRelativeFormat `units` ' +
+	                'value, did you mean: ' + suggestion
+	            );
+	        }
+	    }
+
+	    throw new Error(
+	        '"' + units + '" is not a valid IntlRelativeFormat `units` value, it ' +
+	        'must be one of: "' + FIELDS.join('", "') + '"'
+	    );
+	};
+
+	RelativeFormat.prototype._resolveLocale = function (locales) {
+	    if (!locales) {
+	        locales = RelativeFormat.defaultLocale;
+	    }
+
+	    if (typeof locales === 'string') {
+	        locales = [locales];
+	    }
+
+	    var hop        = Object.prototype.hasOwnProperty;
+	    var localeData = RelativeFormat.__localeData__;
+	    var i, len, locale;
+
+	    for (i = 0, len = locales.length; i < len; i += 1) {
+	        // We just need the root part of the language tag.
+	        locale = locales[i].split('-')[0].toLowerCase();
+
+	        // Validate that the language tag is structurally valid.
+	        if (!/[a-z]{2,3}/.test(locale)) {
+	            throw new Error(
+	                'Language tag provided to IntlRelativeFormat is not ' +
+	                'structrually valid: ' + locale
+	            );
+	        }
+
+	        // Return the first locale for which we have CLDR data registered.
+	        if (hop.call(localeData, locale)) {
+	            return locale;
+	        }
+	    }
+
+	    throw new Error(
+	        'No locale data has been added to IntlRelativeFormat for: ' +
+	        locales.join(', ')
+	    );
+	};
+
+	RelativeFormat.prototype._resolveMessage = function (units) {
+	    var messages = this._messages;
+
+	    // Create a new synthetic message based on the locale data from CLDR.
+	    if (!messages[units]) {
+	        messages[units] = this._compileMessage(units);
+	    }
+
+	    return messages[units];
+	};
+
+	RelativeFormat.prototype._resolveRelativeUnits = function (diff, units) {
+	    var field = RelativeFormat.__localeData__[this._locale].fields[units];
+
+	    if (field.relative) {
+	        return field.relative[diff];
+	    }
+	};
+
+	RelativeFormat.prototype._resolveStyle = function (style) {
+	    // Default to "best fit" style.
+	    if (!style) {
+	        return STYLES[0];
+	    }
+
+	    if (src$es5$$.arrIndexOf.call(STYLES, style) >= 0) {
+	        return style;
+	    }
+
+	    throw new Error(
+	        '"' + style + '" is not a valid IntlRelativeFormat `style` value, it ' +
+	        'must be one of: "' + STYLES.join('", "') + '"'
+	    );
+	};
+
+	RelativeFormat.prototype._selectUnits = function (diffReport) {
+	    var i, l, units;
+
+	    for (i = 0, l = FIELDS.length; i < l; i += 1) {
+	        units = FIELDS[i];
+
+	        if (Math.abs(diffReport[units]) < RelativeFormat.thresholds[units]) {
+	            break;
+	        }
+	    }
+
+	    return units;
+	};
+
+	//# sourceMappingURL=core.js.map
+
+/***/ },
+/* 38 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	exports["default"] = {"locale":"en","pluralRuleFunction":function (n) {var i=Math.floor(Math.abs(n)),v=n.toString().replace(/^[^.]*\.?/,"").length;n=Math.floor(n);if(i===1&&v===0)return"one";return"other";},"fields":{"second":{"displayName":"Second","relative":{"0":"now"},"relativeTime":{"future":{"one":"in {0} second","other":"in {0} seconds"},"past":{"one":"{0} second ago","other":"{0} seconds ago"}}},"minute":{"displayName":"Minute","relativeTime":{"future":{"one":"in {0} minute","other":"in {0} minutes"},"past":{"one":"{0} minute ago","other":"{0} minutes ago"}}},"hour":{"displayName":"Hour","relativeTime":{"future":{"one":"in {0} hour","other":"in {0} hours"},"past":{"one":"{0} hour ago","other":"{0} hours ago"}}},"day":{"displayName":"Day","relative":{"0":"today","1":"tomorrow","-1":"yesterday"},"relativeTime":{"future":{"one":"in {0} day","other":"in {0} days"},"past":{"one":"{0} day ago","other":"{0} days ago"}}},"month":{"displayName":"Month","relative":{"0":"this month","1":"next month","-1":"last month"},"relativeTime":{"future":{"one":"in {0} month","other":"in {0} months"},"past":{"one":"{0} month ago","other":"{0} months ago"}}},"year":{"displayName":"Year","relative":{"0":"this year","1":"next year","-1":"last year"},"relativeTime":{"future":{"one":"in {0} year","other":"in {0} years"},"past":{"one":"{0} year ago","other":"{0} years ago"}}}}};
+
+	//# sourceMappingURL=en.js.map
+
+/***/ },
+/* 39 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	// Purposely using the same implementation as the Intl.js `Intl` polyfill.
+	// Copyright 2013 Andy Earnshaw, MIT License
+
+	var hop = Object.prototype.hasOwnProperty;
+
+	var realDefineProp = (function () {
+	    try { return !!Object.defineProperty({}, 'a', {}); }
+	    catch (e) { return false; }
+	})();
+
+	var es3 = !realDefineProp && !Object.prototype.__defineGetter__;
+
+	var defineProperty = realDefineProp ? Object.defineProperty :
+	        function (obj, name, desc) {
+
+	    if ('get' in desc && obj.__defineGetter__) {
+	        obj.__defineGetter__(name, desc.get);
+	    } else if (!hop.call(obj, name) || 'value' in desc) {
+	        obj[name] = desc.value;
+	    }
+	};
+
+	var objCreate = Object.create || function (proto, props) {
+	    var obj, k;
+
+	    function F() {}
+	    F.prototype = proto;
+	    obj = new F();
+
+	    for (k in props) {
+	        if (hop.call(props, k)) {
+	            defineProperty(obj, k, props[k]);
+	        }
+	    }
+
+	    return obj;
+	};
+	exports.defineProperty = defineProperty, exports.objCreate = objCreate;
+
+	//# sourceMappingURL=es5.js.map
+
+/***/ },
+/* 40 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	exports.extend = extend;
+	var hop = Object.prototype.hasOwnProperty;
+
+	function extend(obj) {
+	    var sources = Array.prototype.slice.call(arguments, 1),
+	        i, len, source, key;
+
+	    for (i = 0, len = sources.length; i < len; i += 1) {
+	        source = sources[i];
+	        if (!source) { continue; }
+
+	        for (key in source) {
+	            if (hop.call(source, key)) {
+	                obj[key] = source[key];
+	            }
+	        }
+	    }
+
+	    return obj;
+	}
+	exports.hop = hop;
+
+	//# sourceMappingURL=utils.js.map
+
+/***/ },
+/* 41 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var src$utils$$ = __webpack_require__(40);
+
+	// Purposely using the same implementation as the Intl.js `Intl` polyfill.
+	// Copyright 2013 Andy Earnshaw, MIT License
+
+	var realDefineProp = (function () {
+	    try { return !!Object.defineProperty({}, 'a', {}); }
+	    catch (e) { return false; }
+	})();
+
+	var es3 = !realDefineProp && !Object.prototype.__defineGetter__;
+
+	var defineProperty = realDefineProp ? Object.defineProperty :
+	        function (obj, name, desc) {
+
+	    if ('get' in desc && obj.__defineGetter__) {
+	        obj.__defineGetter__(name, desc.get);
+	    } else if (!src$utils$$.hop.call(obj, name) || 'value' in desc) {
+	        obj[name] = desc.value;
+	    }
+	};
+
+	var objCreate = Object.create || function (proto, props) {
+	    var obj, k;
+
+	    function F() {}
+	    F.prototype = proto;
+	    obj = new F();
+
+	    for (k in props) {
+	        if (src$utils$$.hop.call(props, k)) {
+	            defineProperty(obj, k, props[k]);
+	        }
+	    }
+
+	    return obj;
+	};
+	exports.defineProperty = defineProperty, exports.objCreate = objCreate;
+
+	//# sourceMappingURL=es5.js.map
+
+/***/ },
+/* 42 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	exports["default"] = Compiler;
+
+	function Compiler(locales, formats, pluralFn) {
+	    this.locales  = locales;
+	    this.formats  = formats;
+	    this.pluralFn = pluralFn;
+	}
+
+	Compiler.prototype.compile = function (ast) {
+	    this.pluralStack        = [];
+	    this.currentPlural      = null;
+	    this.pluralNumberFormat = null;
+
+	    return this.compileMessage(ast);
+	};
+
+	Compiler.prototype.compileMessage = function (ast) {
+	    if (!(ast && ast.type === 'messageFormatPattern')) {
+	        throw new Error('Message AST is not of type: "messageFormatPattern"');
+	    }
+
+	    var elements = ast.elements,
+	        pattern  = [];
+
+	    var i, len, element;
+
+	    for (i = 0, len = elements.length; i < len; i += 1) {
+	        element = elements[i];
+
+	        switch (element.type) {
+	            case 'messageTextElement':
+	                pattern.push(this.compileMessageText(element));
+	                break;
+
+	            case 'argumentElement':
+	                pattern.push(this.compileArgument(element));
+	                break;
+
+	            default:
+	                throw new Error('Message element does not have a valid type');
+	        }
+	    }
+
+	    return pattern;
+	};
+
+	Compiler.prototype.compileMessageText = function (element) {
+	    // When this `element` is part of plural sub-pattern and its value contains
+	    // an unescaped '#', use a `PluralOffsetString` helper to properly output
+	    // the number with the correct offset in the string.
+	    if (this.currentPlural && /(^|[^\\])#/g.test(element.value)) {
+	        // Create a cache a NumberFormat instance that can be reused for any
+	        // PluralOffsetString instance in this message.
+	        if (!this.pluralNumberFormat) {
+	            this.pluralNumberFormat = new Intl.NumberFormat(this.locales);
+	        }
+
+	        return new PluralOffsetString(
+	                this.currentPlural.id,
+	                this.currentPlural.format.offset,
+	                this.pluralNumberFormat,
+	                element.value);
+	    }
+
+	    // Unescape the escaped '#'s in the message text.
+	    return element.value.replace(/\\#/g, '#');
+	};
+
+	Compiler.prototype.compileArgument = function (element) {
+	    var format = element.format;
+
+	    if (!format) {
+	        return new StringFormat(element.id);
+	    }
+
+	    var formats  = this.formats,
+	        locales  = this.locales,
+	        pluralFn = this.pluralFn,
+	        options;
+
+	    switch (format.type) {
+	        case 'numberFormat':
+	            options = formats.number[format.style];
+	            return {
+	                id    : element.id,
+	                format: new Intl.NumberFormat(locales, options).format
+	            };
+
+	        case 'dateFormat':
+	            options = formats.date[format.style];
+	            return {
+	                id    : element.id,
+	                format: new Intl.DateTimeFormat(locales, options).format
+	            };
+
+	        case 'timeFormat':
+	            options = formats.time[format.style];
+	            return {
+	                id    : element.id,
+	                format: new Intl.DateTimeFormat(locales, options).format
+	            };
+
+	        case 'pluralFormat':
+	            options = this.compileOptions(element);
+	            return new PluralFormat(element.id, format.offset, options, pluralFn);
+
+	        case 'selectFormat':
+	            options = this.compileOptions(element);
+	            return new SelectFormat(element.id, options);
+
+	        default:
+	            throw new Error('Message element does not have a valid format type');
+	    }
+	};
+
+	Compiler.prototype.compileOptions = function (element) {
+	    var format      = element.format,
+	        options     = format.options,
+	        optionsHash = {};
+
+	    // Save the current plural element, if any, then set it to a new value when
+	    // compiling the options sub-patterns. This conform's the spec's algorithm
+	    // for handling `"#"` synax in message text.
+	    this.pluralStack.push(this.currentPlural);
+	    this.currentPlural = format.type === 'pluralFormat' ? element : null;
+
+	    var i, len, option;
+
+	    for (i = 0, len = options.length; i < len; i += 1) {
+	        option = options[i];
+
+	        // Compile the sub-pattern and save it under the options's selector.
+	        optionsHash[option.selector] = this.compileMessage(option.value);
+	    }
+
+	    // Pop the plural stack to put back the original currnet plural value.
+	    this.currentPlural = this.pluralStack.pop();
+
+	    return optionsHash;
+	};
+
+	// -- Compiler Helper Classes --------------------------------------------------
+
+	function StringFormat(id) {
+	    this.id = id;
+	}
+
+	StringFormat.prototype.format = function (value) {
+	    if (!value) {
+	        return '';
+	    }
+
+	    return typeof value === 'string' ? value : String(value);
+	};
+
+	function PluralFormat(id, offset, options, pluralFn) {
+	    this.id       = id;
+	    this.offset   = offset;
+	    this.options  = options;
+	    this.pluralFn = pluralFn;
+	}
+
+	PluralFormat.prototype.getOption = function (value) {
+	    var options = this.options;
+
+	    var option = options['=' + value] ||
+	            options[this.pluralFn(value - this.offset)];
+
+	    return option || options.other;
+	};
+
+	function PluralOffsetString(id, offset, numberFormat, string) {
+	    this.id           = id;
+	    this.offset       = offset;
+	    this.numberFormat = numberFormat;
+	    this.string       = string;
+	}
+
+	PluralOffsetString.prototype.format = function (value) {
+	    var number = this.numberFormat.format(value - this.offset);
+
+	    return this.string
+	            .replace(/(^|[^\\])#/g, '$1' + number)
+	            .replace(/\\#/g, '#');
+	};
+
+	function SelectFormat(id, options) {
+	    this.id      = id;
+	    this.options = options;
+	}
+
+	SelectFormat.prototype.getOption = function (value) {
+	    var options = this.options;
+	    return options[value] || options.other;
+	};
+
+	//# sourceMappingURL=compiler.js.map
+
+/***/ },
+/* 43 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	// Purposely using the same implementation as the Intl.js `Intl` polyfill.
+	// Copyright 2013 Andy Earnshaw, MIT License
+
+	var hop = Object.prototype.hasOwnProperty;
+	var toString = Object.prototype.toString;
+
+	var realDefineProp = (function () {
+	    try { return !!Object.defineProperty({}, 'a', {}); }
+	    catch (e) { return false; }
+	})();
+
+	var es3 = !realDefineProp && !Object.prototype.__defineGetter__;
+
+	var defineProperty = realDefineProp ? Object.defineProperty :
+	        function (obj, name, desc) {
+
+	    if ('get' in desc && obj.__defineGetter__) {
+	        obj.__defineGetter__(name, desc.get);
+	    } else if (!hop.call(obj, name) || 'value' in desc) {
+	        obj[name] = desc.value;
+	    }
+	};
+
+	var objCreate = Object.create || function (proto, props) {
+	    var obj, k;
+
+	    function F() {}
+	    F.prototype = proto;
+	    obj = new F();
+
+	    for (k in props) {
+	        if (hop.call(props, k)) {
+	            defineProperty(obj, k, props[k]);
+	        }
+	    }
+
+	    return obj;
+	};
+
+	var arrIndexOf = Array.prototype.indexOf || function (search, fromIndex) {
+	    /*jshint validthis:true */
+	    var arr = this;
+	    if (!arr.length) {
+	        return -1;
+	    }
+
+	    for (var i = fromIndex || 0, max = arr.length; i < max; i++) {
+	        if (arr[i] === search) {
+	            return i;
+	        }
+	    }
+
+	    return -1;
+	};
+
+	var isArray = Array.isArray || function (obj) {
+	    return toString.call(obj) === '[object Array]';
+	};
+
+	var dateNow = Date.now || function () {
+	    return new Date().getTime();
+	};
+	exports.defineProperty = defineProperty, exports.objCreate = objCreate, exports.arrIndexOf = arrIndexOf, exports.isArray = isArray, exports.dateNow = dateNow;
+
+	//# sourceMappingURL=es5.js.map
+
+/***/ },
+/* 44 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	/*
+	Copyright (c) 2014, Yahoo! Inc. All rights reserved.
+	Copyrights licensed under the New BSD License.
+	See the accompanying LICENSE file for terms.
+	*/
+
+	/* jslint esnext: true */
+
+	var round = Math.round;
+
+	function daysToYears (days) {
+	    // 400 years have 146097 days (taking into account leap year rules)
+	    return days * 400 / 146097;
+	}
+
+	exports["default"] = function (dfrom, dto) {
+	    // Convert to ms timestamps.
+	    dfrom = +dfrom;
+	    dto   = +dto;
+
+	    var millisecond = round(dto - dfrom),
+	        second      = round(millisecond / 1000),
+	        minute      = round(second / 60),
+	        hour        = round(minute / 60),
+	        day         = round(hour / 24),
+	        week        = round(day / 7);
+
+	    var rawYears = daysToYears(day),
+	        month    = round(rawYears * 12),
+	        year     = round(rawYears);
+
+	    return {
+	        millisecond: millisecond,
+	        second     : second,
+	        minute     : minute,
+	        hour       : hour,
+	        day        : day,
+	        week       : week,
+	        month      : month,
+	        year       : year
+	    };
+	};
+
+	//# sourceMappingURL=diff.js.map
+
+/***/ },
+/* 45 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	exports = module.exports = __webpack_require__(46)['default'];
+	exports['default'] = exports;
+
+
+/***/ },
+/* 46 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	exports["default"] = (function() {
+	  /*
+	   * Generated by PEG.js 0.8.0.
+	   *
+	   * http://pegjs.majda.cz/
+	   */
+
+	  function peg$subclass(child, parent) {
+	    function ctor() { this.constructor = child; }
+	    ctor.prototype = parent.prototype;
+	    child.prototype = new ctor();
+	  }
+
+	  function SyntaxError(message, expected, found, offset, line, column) {
+	    this.message  = message;
+	    this.expected = expected;
+	    this.found    = found;
+	    this.offset   = offset;
+	    this.line     = line;
+	    this.column   = column;
+
+	    this.name     = "SyntaxError";
+	  }
+
+	  peg$subclass(SyntaxError, Error);
+
+	  function parse(input) {
+	    var options = arguments.length > 1 ? arguments[1] : {},
+
+	        peg$FAILED = {},
+
+	        peg$startRuleFunctions = { start: peg$parsestart },
+	        peg$startRuleFunction  = peg$parsestart,
+
+	        peg$c0 = [],
+	        peg$c1 = function(elements) {
+	                return {
+	                    type    : 'messageFormatPattern',
+	                    elements: elements
+	                };
+	            },
+	        peg$c2 = peg$FAILED,
+	        peg$c3 = function(text) {
+	                var string = '',
+	                    i, j, outerLen, inner, innerLen;
+
+	                for (i = 0, outerLen = text.length; i < outerLen; i += 1) {
+	                    inner = text[i];
+
+	                    for (j = 0, innerLen = inner.length; j < innerLen; j += 1) {
+	                        string += inner[j];
+	                    }
+	                }
+
+	                return string;
+	            },
+	        peg$c4 = function(messageText) {
+	                return {
+	                    type : 'messageTextElement',
+	                    value: messageText
+	                };
+	            },
+	        peg$c5 = /^[^ \t\n\r,.+={}#]/,
+	        peg$c6 = { type: "class", value: "[^ \\t\\n\\r,.+={}#]", description: "[^ \\t\\n\\r,.+={}#]" },
+	        peg$c7 = "{",
+	        peg$c8 = { type: "literal", value: "{", description: "\"{\"" },
+	        peg$c9 = null,
+	        peg$c10 = ",",
+	        peg$c11 = { type: "literal", value: ",", description: "\",\"" },
+	        peg$c12 = "}",
+	        peg$c13 = { type: "literal", value: "}", description: "\"}\"" },
+	        peg$c14 = function(id, format) {
+	                return {
+	                    type  : 'argumentElement',
+	                    id    : id,
+	                    format: format && format[2]
+	                };
+	            },
+	        peg$c15 = "number",
+	        peg$c16 = { type: "literal", value: "number", description: "\"number\"" },
+	        peg$c17 = "date",
+	        peg$c18 = { type: "literal", value: "date", description: "\"date\"" },
+	        peg$c19 = "time",
+	        peg$c20 = { type: "literal", value: "time", description: "\"time\"" },
+	        peg$c21 = function(type, style) {
+	                return {
+	                    type : type + 'Format',
+	                    style: style && style[2]
+	                };
+	            },
+	        peg$c22 = "plural",
+	        peg$c23 = { type: "literal", value: "plural", description: "\"plural\"" },
+	        peg$c24 = function(offset, options) {
+	                return {
+	                    type   : 'pluralFormat',
+	                    offset : offset || 0,
+	                    options: options
+	                }
+	            },
+	        peg$c25 = "select",
+	        peg$c26 = { type: "literal", value: "select", description: "\"select\"" },
+	        peg$c27 = function(options) {
+	                return {
+	                    type   : 'selectFormat',
+	                    options: options
+	                }
+	            },
+	        peg$c28 = "=",
+	        peg$c29 = { type: "literal", value: "=", description: "\"=\"" },
+	        peg$c30 = function(selector, pattern) {
+	                return {
+	                    type    : 'optionalFormatPattern',
+	                    selector: selector,
+	                    value   : pattern
+	                };
+	            },
+	        peg$c31 = "offset:",
+	        peg$c32 = { type: "literal", value: "offset:", description: "\"offset:\"" },
+	        peg$c33 = function(number) {
+	                return number;
+	            },
+	        peg$c34 = { type: "other", description: "whitespace" },
+	        peg$c35 = /^[ \t\n\r]/,
+	        peg$c36 = { type: "class", value: "[ \\t\\n\\r]", description: "[ \\t\\n\\r]" },
+	        peg$c37 = { type: "other", description: "optionalWhitespace" },
+	        peg$c38 = /^[0-9]/,
+	        peg$c39 = { type: "class", value: "[0-9]", description: "[0-9]" },
+	        peg$c40 = /^[0-9a-f]/i,
+	        peg$c41 = { type: "class", value: "[0-9a-f]i", description: "[0-9a-f]i" },
+	        peg$c42 = "0",
+	        peg$c43 = { type: "literal", value: "0", description: "\"0\"" },
+	        peg$c44 = /^[1-9]/,
+	        peg$c45 = { type: "class", value: "[1-9]", description: "[1-9]" },
+	        peg$c46 = function(digits) {
+	            return parseInt(digits, 10);
+	        },
+	        peg$c47 = /^[^{}\\\0-\x1F \t\n\r]/,
+	        peg$c48 = { type: "class", value: "[^{}\\\\\\0-\\x1F \\t\\n\\r]", description: "[^{}\\\\\\0-\\x1F \\t\\n\\r]" },
+	        peg$c49 = "\\#",
+	        peg$c50 = { type: "literal", value: "\\#", description: "\"\\\\#\"" },
+	        peg$c51 = function() { return '\\#'; },
+	        peg$c52 = "\\{",
+	        peg$c53 = { type: "literal", value: "\\{", description: "\"\\\\{\"" },
+	        peg$c54 = function() { return '\u007B'; },
+	        peg$c55 = "\\}",
+	        peg$c56 = { type: "literal", value: "\\}", description: "\"\\\\}\"" },
+	        peg$c57 = function() { return '\u007D'; },
+	        peg$c58 = "\\u",
+	        peg$c59 = { type: "literal", value: "\\u", description: "\"\\\\u\"" },
+	        peg$c60 = function(digits) {
+	                return String.fromCharCode(parseInt(digits, 16));
+	            },
+	        peg$c61 = function(chars) { return chars.join(''); },
+
+	        peg$currPos          = 0,
+	        peg$reportedPos      = 0,
+	        peg$cachedPos        = 0,
+	        peg$cachedPosDetails = { line: 1, column: 1, seenCR: false },
+	        peg$maxFailPos       = 0,
+	        peg$maxFailExpected  = [],
+	        peg$silentFails      = 0,
+
+	        peg$result;
+
+	    if ("startRule" in options) {
+	      if (!(options.startRule in peg$startRuleFunctions)) {
+	        throw new Error("Can't start parsing from rule \"" + options.startRule + "\".");
+	      }
+
+	      peg$startRuleFunction = peg$startRuleFunctions[options.startRule];
+	    }
+
+	    function text() {
+	      return input.substring(peg$reportedPos, peg$currPos);
+	    }
+
+	    function offset() {
+	      return peg$reportedPos;
+	    }
+
+	    function line() {
+	      return peg$computePosDetails(peg$reportedPos).line;
+	    }
+
+	    function column() {
+	      return peg$computePosDetails(peg$reportedPos).column;
+	    }
+
+	    function expected(description) {
+	      throw peg$buildException(
+	        null,
+	        [{ type: "other", description: description }],
+	        peg$reportedPos
+	      );
+	    }
+
+	    function error(message) {
+	      throw peg$buildException(message, null, peg$reportedPos);
+	    }
+
+	    function peg$computePosDetails(pos) {
+	      function advance(details, startPos, endPos) {
+	        var p, ch;
+
+	        for (p = startPos; p < endPos; p++) {
+	          ch = input.charAt(p);
+	          if (ch === "\n") {
+	            if (!details.seenCR) { details.line++; }
+	            details.column = 1;
+	            details.seenCR = false;
+	          } else if (ch === "\r" || ch === "\u2028" || ch === "\u2029") {
+	            details.line++;
+	            details.column = 1;
+	            details.seenCR = true;
+	          } else {
+	            details.column++;
+	            details.seenCR = false;
+	          }
+	        }
+	      }
+
+	      if (peg$cachedPos !== pos) {
+	        if (peg$cachedPos > pos) {
+	          peg$cachedPos = 0;
+	          peg$cachedPosDetails = { line: 1, column: 1, seenCR: false };
+	        }
+	        advance(peg$cachedPosDetails, peg$cachedPos, pos);
+	        peg$cachedPos = pos;
+	      }
+
+	      return peg$cachedPosDetails;
+	    }
+
+	    function peg$fail(expected) {
+	      if (peg$currPos < peg$maxFailPos) { return; }
+
+	      if (peg$currPos > peg$maxFailPos) {
+	        peg$maxFailPos = peg$currPos;
+	        peg$maxFailExpected = [];
+	      }
+
+	      peg$maxFailExpected.push(expected);
+	    }
+
+	    function peg$buildException(message, expected, pos) {
+	      function cleanupExpected(expected) {
+	        var i = 1;
+
+	        expected.sort(function(a, b) {
+	          if (a.description < b.description) {
+	            return -1;
+	          } else if (a.description > b.description) {
+	            return 1;
+	          } else {
+	            return 0;
+	          }
+	        });
+
+	        while (i < expected.length) {
+	          if (expected[i - 1] === expected[i]) {
+	            expected.splice(i, 1);
+	          } else {
+	            i++;
+	          }
+	        }
+	      }
+
+	      function buildMessage(expected, found) {
+	        function stringEscape(s) {
+	          function hex(ch) { return ch.charCodeAt(0).toString(16).toUpperCase(); }
+
+	          return s
+	            .replace(/\\/g,   '\\\\')
+	            .replace(/"/g,    '\\"')
+	            .replace(/\x08/g, '\\b')
+	            .replace(/\t/g,   '\\t')
+	            .replace(/\n/g,   '\\n')
+	            .replace(/\f/g,   '\\f')
+	            .replace(/\r/g,   '\\r')
+	            .replace(/[\x00-\x07\x0B\x0E\x0F]/g, function(ch) { return '\\x0' + hex(ch); })
+	            .replace(/[\x10-\x1F\x80-\xFF]/g,    function(ch) { return '\\x'  + hex(ch); })
+	            .replace(/[\u0180-\u0FFF]/g,         function(ch) { return '\\u0' + hex(ch); })
+	            .replace(/[\u1080-\uFFFF]/g,         function(ch) { return '\\u'  + hex(ch); });
+	        }
+
+	        var expectedDescs = new Array(expected.length),
+	            expectedDesc, foundDesc, i;
+
+	        for (i = 0; i < expected.length; i++) {
+	          expectedDescs[i] = expected[i].description;
+	        }
+
+	        expectedDesc = expected.length > 1
+	          ? expectedDescs.slice(0, -1).join(", ")
+	              + " or "
+	              + expectedDescs[expected.length - 1]
+	          : expectedDescs[0];
+
+	        foundDesc = found ? "\"" + stringEscape(found) + "\"" : "end of input";
+
+	        return "Expected " + expectedDesc + " but " + foundDesc + " found.";
+	      }
+
+	      var posDetails = peg$computePosDetails(pos),
+	          found      = pos < input.length ? input.charAt(pos) : null;
+
+	      if (expected !== null) {
+	        cleanupExpected(expected);
+	      }
+
+	      return new SyntaxError(
+	        message !== null ? message : buildMessage(expected, found),
+	        expected,
+	        found,
+	        pos,
+	        posDetails.line,
+	        posDetails.column
+	      );
+	    }
+
+	    function peg$parsestart() {
+	      var s0;
+
+	      s0 = peg$parsemessageFormatPattern();
+
+	      return s0;
+	    }
+
+	    function peg$parsemessageFormatPattern() {
+	      var s0, s1, s2;
+
+	      s0 = peg$currPos;
+	      s1 = [];
+	      s2 = peg$parsemessageFormatElement();
+	      while (s2 !== peg$FAILED) {
+	        s1.push(s2);
+	        s2 = peg$parsemessageFormatElement();
+	      }
+	      if (s1 !== peg$FAILED) {
+	        peg$reportedPos = s0;
+	        s1 = peg$c1(s1);
+	      }
+	      s0 = s1;
+
+	      return s0;
+	    }
+
+	    function peg$parsemessageFormatElement() {
+	      var s0;
+
+	      s0 = peg$parsemessageTextElement();
+	      if (s0 === peg$FAILED) {
+	        s0 = peg$parseargumentElement();
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsemessageText() {
+	      var s0, s1, s2, s3, s4, s5;
+
+	      s0 = peg$currPos;
+	      s1 = [];
+	      s2 = peg$currPos;
+	      s3 = peg$parse_();
+	      if (s3 !== peg$FAILED) {
+	        s4 = peg$parsechars();
+	        if (s4 !== peg$FAILED) {
+	          s5 = peg$parse_();
+	          if (s5 !== peg$FAILED) {
+	            s3 = [s3, s4, s5];
+	            s2 = s3;
+	          } else {
+	            peg$currPos = s2;
+	            s2 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s2;
+	          s2 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s2;
+	        s2 = peg$c2;
+	      }
+	      if (s2 !== peg$FAILED) {
+	        while (s2 !== peg$FAILED) {
+	          s1.push(s2);
+	          s2 = peg$currPos;
+	          s3 = peg$parse_();
+	          if (s3 !== peg$FAILED) {
+	            s4 = peg$parsechars();
+	            if (s4 !== peg$FAILED) {
+	              s5 = peg$parse_();
+	              if (s5 !== peg$FAILED) {
+	                s3 = [s3, s4, s5];
+	                s2 = s3;
+	              } else {
+	                peg$currPos = s2;
+	                s2 = peg$c2;
+	              }
+	            } else {
+	              peg$currPos = s2;
+	              s2 = peg$c2;
+	            }
+	          } else {
+	            peg$currPos = s2;
+	            s2 = peg$c2;
+	          }
+	        }
+	      } else {
+	        s1 = peg$c2;
+	      }
+	      if (s1 !== peg$FAILED) {
+	        peg$reportedPos = s0;
+	        s1 = peg$c3(s1);
+	      }
+	      s0 = s1;
+	      if (s0 === peg$FAILED) {
+	        s0 = peg$currPos;
+	        s1 = peg$parsews();
+	        if (s1 !== peg$FAILED) {
+	          s1 = input.substring(s0, peg$currPos);
+	        }
+	        s0 = s1;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsemessageTextElement() {
+	      var s0, s1;
+
+	      s0 = peg$currPos;
+	      s1 = peg$parsemessageText();
+	      if (s1 !== peg$FAILED) {
+	        peg$reportedPos = s0;
+	        s1 = peg$c4(s1);
+	      }
+	      s0 = s1;
+
+	      return s0;
+	    }
+
+	    function peg$parseargument() {
+	      var s0, s1, s2;
+
+	      s0 = peg$parsenumber();
+	      if (s0 === peg$FAILED) {
+	        s0 = peg$currPos;
+	        s1 = [];
+	        if (peg$c5.test(input.charAt(peg$currPos))) {
+	          s2 = input.charAt(peg$currPos);
+	          peg$currPos++;
+	        } else {
+	          s2 = peg$FAILED;
+	          if (peg$silentFails === 0) { peg$fail(peg$c6); }
+	        }
+	        if (s2 !== peg$FAILED) {
+	          while (s2 !== peg$FAILED) {
+	            s1.push(s2);
+	            if (peg$c5.test(input.charAt(peg$currPos))) {
+	              s2 = input.charAt(peg$currPos);
+	              peg$currPos++;
+	            } else {
+	              s2 = peg$FAILED;
+	              if (peg$silentFails === 0) { peg$fail(peg$c6); }
+	            }
+	          }
+	        } else {
+	          s1 = peg$c2;
+	        }
+	        if (s1 !== peg$FAILED) {
+	          s1 = input.substring(s0, peg$currPos);
+	        }
+	        s0 = s1;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parseargumentElement() {
+	      var s0, s1, s2, s3, s4, s5, s6, s7, s8;
+
+	      s0 = peg$currPos;
+	      if (input.charCodeAt(peg$currPos) === 123) {
+	        s1 = peg$c7;
+	        peg$currPos++;
+	      } else {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c8); }
+	      }
+	      if (s1 !== peg$FAILED) {
+	        s2 = peg$parse_();
+	        if (s2 !== peg$FAILED) {
+	          s3 = peg$parseargument();
+	          if (s3 !== peg$FAILED) {
+	            s4 = peg$parse_();
+	            if (s4 !== peg$FAILED) {
+	              s5 = peg$currPos;
+	              if (input.charCodeAt(peg$currPos) === 44) {
+	                s6 = peg$c10;
+	                peg$currPos++;
+	              } else {
+	                s6 = peg$FAILED;
+	                if (peg$silentFails === 0) { peg$fail(peg$c11); }
+	              }
+	              if (s6 !== peg$FAILED) {
+	                s7 = peg$parse_();
+	                if (s7 !== peg$FAILED) {
+	                  s8 = peg$parseelementFormat();
+	                  if (s8 !== peg$FAILED) {
+	                    s6 = [s6, s7, s8];
+	                    s5 = s6;
+	                  } else {
+	                    peg$currPos = s5;
+	                    s5 = peg$c2;
+	                  }
+	                } else {
+	                  peg$currPos = s5;
+	                  s5 = peg$c2;
+	                }
+	              } else {
+	                peg$currPos = s5;
+	                s5 = peg$c2;
+	              }
+	              if (s5 === peg$FAILED) {
+	                s5 = peg$c9;
+	              }
+	              if (s5 !== peg$FAILED) {
+	                s6 = peg$parse_();
+	                if (s6 !== peg$FAILED) {
+	                  if (input.charCodeAt(peg$currPos) === 125) {
+	                    s7 = peg$c12;
+	                    peg$currPos++;
+	                  } else {
+	                    s7 = peg$FAILED;
+	                    if (peg$silentFails === 0) { peg$fail(peg$c13); }
+	                  }
+	                  if (s7 !== peg$FAILED) {
+	                    peg$reportedPos = s0;
+	                    s1 = peg$c14(s3, s5);
+	                    s0 = s1;
+	                  } else {
+	                    peg$currPos = s0;
+	                    s0 = peg$c2;
+	                  }
+	                } else {
+	                  peg$currPos = s0;
+	                  s0 = peg$c2;
+	                }
+	              } else {
+	                peg$currPos = s0;
+	                s0 = peg$c2;
+	              }
+	            } else {
+	              peg$currPos = s0;
+	              s0 = peg$c2;
+	            }
+	          } else {
+	            peg$currPos = s0;
+	            s0 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s0;
+	          s0 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s0;
+	        s0 = peg$c2;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parseelementFormat() {
+	      var s0;
+
+	      s0 = peg$parsesimpleFormat();
+	      if (s0 === peg$FAILED) {
+	        s0 = peg$parsepluralFormat();
+	        if (s0 === peg$FAILED) {
+	          s0 = peg$parseselectFormat();
+	        }
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsesimpleFormat() {
+	      var s0, s1, s2, s3, s4, s5, s6;
+
+	      s0 = peg$currPos;
+	      if (input.substr(peg$currPos, 6) === peg$c15) {
+	        s1 = peg$c15;
+	        peg$currPos += 6;
+	      } else {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c16); }
+	      }
+	      if (s1 === peg$FAILED) {
+	        if (input.substr(peg$currPos, 4) === peg$c17) {
+	          s1 = peg$c17;
+	          peg$currPos += 4;
+	        } else {
+	          s1 = peg$FAILED;
+	          if (peg$silentFails === 0) { peg$fail(peg$c18); }
+	        }
+	        if (s1 === peg$FAILED) {
+	          if (input.substr(peg$currPos, 4) === peg$c19) {
+	            s1 = peg$c19;
+	            peg$currPos += 4;
+	          } else {
+	            s1 = peg$FAILED;
+	            if (peg$silentFails === 0) { peg$fail(peg$c20); }
+	          }
+	        }
+	      }
+	      if (s1 !== peg$FAILED) {
+	        s2 = peg$parse_();
+	        if (s2 !== peg$FAILED) {
+	          s3 = peg$currPos;
+	          if (input.charCodeAt(peg$currPos) === 44) {
+	            s4 = peg$c10;
+	            peg$currPos++;
+	          } else {
+	            s4 = peg$FAILED;
+	            if (peg$silentFails === 0) { peg$fail(peg$c11); }
+	          }
+	          if (s4 !== peg$FAILED) {
+	            s5 = peg$parse_();
+	            if (s5 !== peg$FAILED) {
+	              s6 = peg$parsechars();
+	              if (s6 !== peg$FAILED) {
+	                s4 = [s4, s5, s6];
+	                s3 = s4;
+	              } else {
+	                peg$currPos = s3;
+	                s3 = peg$c2;
+	              }
+	            } else {
+	              peg$currPos = s3;
+	              s3 = peg$c2;
+	            }
+	          } else {
+	            peg$currPos = s3;
+	            s3 = peg$c2;
+	          }
+	          if (s3 === peg$FAILED) {
+	            s3 = peg$c9;
+	          }
+	          if (s3 !== peg$FAILED) {
+	            peg$reportedPos = s0;
+	            s1 = peg$c21(s1, s3);
+	            s0 = s1;
+	          } else {
+	            peg$currPos = s0;
+	            s0 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s0;
+	          s0 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s0;
+	        s0 = peg$c2;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsepluralFormat() {
+	      var s0, s1, s2, s3, s4, s5, s6, s7, s8;
+
+	      s0 = peg$currPos;
+	      if (input.substr(peg$currPos, 6) === peg$c22) {
+	        s1 = peg$c22;
+	        peg$currPos += 6;
+	      } else {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c23); }
+	      }
+	      if (s1 !== peg$FAILED) {
+	        s2 = peg$parse_();
+	        if (s2 !== peg$FAILED) {
+	          if (input.charCodeAt(peg$currPos) === 44) {
+	            s3 = peg$c10;
+	            peg$currPos++;
+	          } else {
+	            s3 = peg$FAILED;
+	            if (peg$silentFails === 0) { peg$fail(peg$c11); }
+	          }
+	          if (s3 !== peg$FAILED) {
+	            s4 = peg$parse_();
+	            if (s4 !== peg$FAILED) {
+	              s5 = peg$parseoffset();
+	              if (s5 === peg$FAILED) {
+	                s5 = peg$c9;
+	              }
+	              if (s5 !== peg$FAILED) {
+	                s6 = peg$parse_();
+	                if (s6 !== peg$FAILED) {
+	                  s7 = [];
+	                  s8 = peg$parseoptionalFormatPattern();
+	                  if (s8 !== peg$FAILED) {
+	                    while (s8 !== peg$FAILED) {
+	                      s7.push(s8);
+	                      s8 = peg$parseoptionalFormatPattern();
+	                    }
+	                  } else {
+	                    s7 = peg$c2;
+	                  }
+	                  if (s7 !== peg$FAILED) {
+	                    peg$reportedPos = s0;
+	                    s1 = peg$c24(s5, s7);
+	                    s0 = s1;
+	                  } else {
+	                    peg$currPos = s0;
+	                    s0 = peg$c2;
+	                  }
+	                } else {
+	                  peg$currPos = s0;
+	                  s0 = peg$c2;
+	                }
+	              } else {
+	                peg$currPos = s0;
+	                s0 = peg$c2;
+	              }
+	            } else {
+	              peg$currPos = s0;
+	              s0 = peg$c2;
+	            }
+	          } else {
+	            peg$currPos = s0;
+	            s0 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s0;
+	          s0 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s0;
+	        s0 = peg$c2;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parseselectFormat() {
+	      var s0, s1, s2, s3, s4, s5, s6;
+
+	      s0 = peg$currPos;
+	      if (input.substr(peg$currPos, 6) === peg$c25) {
+	        s1 = peg$c25;
+	        peg$currPos += 6;
+	      } else {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c26); }
+	      }
+	      if (s1 !== peg$FAILED) {
+	        s2 = peg$parse_();
+	        if (s2 !== peg$FAILED) {
+	          if (input.charCodeAt(peg$currPos) === 44) {
+	            s3 = peg$c10;
+	            peg$currPos++;
+	          } else {
+	            s3 = peg$FAILED;
+	            if (peg$silentFails === 0) { peg$fail(peg$c11); }
+	          }
+	          if (s3 !== peg$FAILED) {
+	            s4 = peg$parse_();
+	            if (s4 !== peg$FAILED) {
+	              s5 = [];
+	              s6 = peg$parseoptionalFormatPattern();
+	              if (s6 !== peg$FAILED) {
+	                while (s6 !== peg$FAILED) {
+	                  s5.push(s6);
+	                  s6 = peg$parseoptionalFormatPattern();
+	                }
+	              } else {
+	                s5 = peg$c2;
+	              }
+	              if (s5 !== peg$FAILED) {
+	                peg$reportedPos = s0;
+	                s1 = peg$c27(s5);
+	                s0 = s1;
+	              } else {
+	                peg$currPos = s0;
+	                s0 = peg$c2;
+	              }
+	            } else {
+	              peg$currPos = s0;
+	              s0 = peg$c2;
+	            }
+	          } else {
+	            peg$currPos = s0;
+	            s0 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s0;
+	          s0 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s0;
+	        s0 = peg$c2;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parseselector() {
+	      var s0, s1, s2, s3;
+
+	      s0 = peg$currPos;
+	      s1 = peg$currPos;
+	      if (input.charCodeAt(peg$currPos) === 61) {
+	        s2 = peg$c28;
+	        peg$currPos++;
+	      } else {
+	        s2 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c29); }
+	      }
+	      if (s2 !== peg$FAILED) {
+	        s3 = peg$parsenumber();
+	        if (s3 !== peg$FAILED) {
+	          s2 = [s2, s3];
+	          s1 = s2;
+	        } else {
+	          peg$currPos = s1;
+	          s1 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s1;
+	        s1 = peg$c2;
+	      }
+	      if (s1 !== peg$FAILED) {
+	        s1 = input.substring(s0, peg$currPos);
+	      }
+	      s0 = s1;
+	      if (s0 === peg$FAILED) {
+	        s0 = peg$parsechars();
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parseoptionalFormatPattern() {
+	      var s0, s1, s2, s3, s4, s5, s6, s7, s8;
+
+	      s0 = peg$currPos;
+	      s1 = peg$parse_();
+	      if (s1 !== peg$FAILED) {
+	        s2 = peg$parseselector();
+	        if (s2 !== peg$FAILED) {
+	          s3 = peg$parse_();
+	          if (s3 !== peg$FAILED) {
+	            if (input.charCodeAt(peg$currPos) === 123) {
+	              s4 = peg$c7;
+	              peg$currPos++;
+	            } else {
+	              s4 = peg$FAILED;
+	              if (peg$silentFails === 0) { peg$fail(peg$c8); }
+	            }
+	            if (s4 !== peg$FAILED) {
+	              s5 = peg$parse_();
+	              if (s5 !== peg$FAILED) {
+	                s6 = peg$parsemessageFormatPattern();
+	                if (s6 !== peg$FAILED) {
+	                  s7 = peg$parse_();
+	                  if (s7 !== peg$FAILED) {
+	                    if (input.charCodeAt(peg$currPos) === 125) {
+	                      s8 = peg$c12;
+	                      peg$currPos++;
+	                    } else {
+	                      s8 = peg$FAILED;
+	                      if (peg$silentFails === 0) { peg$fail(peg$c13); }
+	                    }
+	                    if (s8 !== peg$FAILED) {
+	                      peg$reportedPos = s0;
+	                      s1 = peg$c30(s2, s6);
+	                      s0 = s1;
+	                    } else {
+	                      peg$currPos = s0;
+	                      s0 = peg$c2;
+	                    }
+	                  } else {
+	                    peg$currPos = s0;
+	                    s0 = peg$c2;
+	                  }
+	                } else {
+	                  peg$currPos = s0;
+	                  s0 = peg$c2;
+	                }
+	              } else {
+	                peg$currPos = s0;
+	                s0 = peg$c2;
+	              }
+	            } else {
+	              peg$currPos = s0;
+	              s0 = peg$c2;
+	            }
+	          } else {
+	            peg$currPos = s0;
+	            s0 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s0;
+	          s0 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s0;
+	        s0 = peg$c2;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parseoffset() {
+	      var s0, s1, s2, s3;
+
+	      s0 = peg$currPos;
+	      if (input.substr(peg$currPos, 7) === peg$c31) {
+	        s1 = peg$c31;
+	        peg$currPos += 7;
+	      } else {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c32); }
+	      }
+	      if (s1 !== peg$FAILED) {
+	        s2 = peg$parse_();
+	        if (s2 !== peg$FAILED) {
+	          s3 = peg$parsenumber();
+	          if (s3 !== peg$FAILED) {
+	            peg$reportedPos = s0;
+	            s1 = peg$c33(s3);
+	            s0 = s1;
+	          } else {
+	            peg$currPos = s0;
+	            s0 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s0;
+	          s0 = peg$c2;
+	        }
+	      } else {
+	        peg$currPos = s0;
+	        s0 = peg$c2;
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsews() {
+	      var s0, s1;
+
+	      peg$silentFails++;
+	      s0 = [];
+	      if (peg$c35.test(input.charAt(peg$currPos))) {
+	        s1 = input.charAt(peg$currPos);
+	        peg$currPos++;
+	      } else {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c36); }
+	      }
+	      if (s1 !== peg$FAILED) {
+	        while (s1 !== peg$FAILED) {
+	          s0.push(s1);
+	          if (peg$c35.test(input.charAt(peg$currPos))) {
+	            s1 = input.charAt(peg$currPos);
+	            peg$currPos++;
+	          } else {
+	            s1 = peg$FAILED;
+	            if (peg$silentFails === 0) { peg$fail(peg$c36); }
+	          }
+	        }
+	      } else {
+	        s0 = peg$c2;
+	      }
+	      peg$silentFails--;
+	      if (s0 === peg$FAILED) {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c34); }
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parse_() {
+	      var s0, s1, s2;
+
+	      peg$silentFails++;
+	      s0 = peg$currPos;
+	      s1 = [];
+	      s2 = peg$parsews();
+	      while (s2 !== peg$FAILED) {
+	        s1.push(s2);
+	        s2 = peg$parsews();
+	      }
+	      if (s1 !== peg$FAILED) {
+	        s1 = input.substring(s0, peg$currPos);
+	      }
+	      s0 = s1;
+	      peg$silentFails--;
+	      if (s0 === peg$FAILED) {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c37); }
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsedigit() {
+	      var s0;
+
+	      if (peg$c38.test(input.charAt(peg$currPos))) {
+	        s0 = input.charAt(peg$currPos);
+	        peg$currPos++;
+	      } else {
+	        s0 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c39); }
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsehexDigit() {
+	      var s0;
+
+	      if (peg$c40.test(input.charAt(peg$currPos))) {
+	        s0 = input.charAt(peg$currPos);
+	        peg$currPos++;
+	      } else {
+	        s0 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c41); }
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsenumber() {
+	      var s0, s1, s2, s3, s4, s5;
+
+	      s0 = peg$currPos;
+	      if (input.charCodeAt(peg$currPos) === 48) {
+	        s1 = peg$c42;
+	        peg$currPos++;
+	      } else {
+	        s1 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c43); }
+	      }
+	      if (s1 === peg$FAILED) {
+	        s1 = peg$currPos;
+	        s2 = peg$currPos;
+	        if (peg$c44.test(input.charAt(peg$currPos))) {
+	          s3 = input.charAt(peg$currPos);
+	          peg$currPos++;
+	        } else {
+	          s3 = peg$FAILED;
+	          if (peg$silentFails === 0) { peg$fail(peg$c45); }
+	        }
+	        if (s3 !== peg$FAILED) {
+	          s4 = [];
+	          s5 = peg$parsedigit();
+	          while (s5 !== peg$FAILED) {
+	            s4.push(s5);
+	            s5 = peg$parsedigit();
+	          }
+	          if (s4 !== peg$FAILED) {
+	            s3 = [s3, s4];
+	            s2 = s3;
+	          } else {
+	            peg$currPos = s2;
+	            s2 = peg$c2;
+	          }
+	        } else {
+	          peg$currPos = s2;
+	          s2 = peg$c2;
+	        }
+	        if (s2 !== peg$FAILED) {
+	          s2 = input.substring(s1, peg$currPos);
+	        }
+	        s1 = s2;
+	      }
+	      if (s1 !== peg$FAILED) {
+	        peg$reportedPos = s0;
+	        s1 = peg$c46(s1);
+	      }
+	      s0 = s1;
+
+	      return s0;
+	    }
+
+	    function peg$parsechar() {
+	      var s0, s1, s2, s3, s4, s5, s6, s7;
+
+	      if (peg$c47.test(input.charAt(peg$currPos))) {
+	        s0 = input.charAt(peg$currPos);
+	        peg$currPos++;
+	      } else {
+	        s0 = peg$FAILED;
+	        if (peg$silentFails === 0) { peg$fail(peg$c48); }
+	      }
+	      if (s0 === peg$FAILED) {
+	        s0 = peg$currPos;
+	        if (input.substr(peg$currPos, 2) === peg$c49) {
+	          s1 = peg$c49;
+	          peg$currPos += 2;
+	        } else {
+	          s1 = peg$FAILED;
+	          if (peg$silentFails === 0) { peg$fail(peg$c50); }
+	        }
+	        if (s1 !== peg$FAILED) {
+	          peg$reportedPos = s0;
+	          s1 = peg$c51();
+	        }
+	        s0 = s1;
+	        if (s0 === peg$FAILED) {
+	          s0 = peg$currPos;
+	          if (input.substr(peg$currPos, 2) === peg$c52) {
+	            s1 = peg$c52;
+	            peg$currPos += 2;
+	          } else {
+	            s1 = peg$FAILED;
+	            if (peg$silentFails === 0) { peg$fail(peg$c53); }
+	          }
+	          if (s1 !== peg$FAILED) {
+	            peg$reportedPos = s0;
+	            s1 = peg$c54();
+	          }
+	          s0 = s1;
+	          if (s0 === peg$FAILED) {
+	            s0 = peg$currPos;
+	            if (input.substr(peg$currPos, 2) === peg$c55) {
+	              s1 = peg$c55;
+	              peg$currPos += 2;
+	            } else {
+	              s1 = peg$FAILED;
+	              if (peg$silentFails === 0) { peg$fail(peg$c56); }
+	            }
+	            if (s1 !== peg$FAILED) {
+	              peg$reportedPos = s0;
+	              s1 = peg$c57();
+	            }
+	            s0 = s1;
+	            if (s0 === peg$FAILED) {
+	              s0 = peg$currPos;
+	              if (input.substr(peg$currPos, 2) === peg$c58) {
+	                s1 = peg$c58;
+	                peg$currPos += 2;
+	              } else {
+	                s1 = peg$FAILED;
+	                if (peg$silentFails === 0) { peg$fail(peg$c59); }
+	              }
+	              if (s1 !== peg$FAILED) {
+	                s2 = peg$currPos;
+	                s3 = peg$currPos;
+	                s4 = peg$parsehexDigit();
+	                if (s4 !== peg$FAILED) {
+	                  s5 = peg$parsehexDigit();
+	                  if (s5 !== peg$FAILED) {
+	                    s6 = peg$parsehexDigit();
+	                    if (s6 !== peg$FAILED) {
+	                      s7 = peg$parsehexDigit();
+	                      if (s7 !== peg$FAILED) {
+	                        s4 = [s4, s5, s6, s7];
+	                        s3 = s4;
+	                      } else {
+	                        peg$currPos = s3;
+	                        s3 = peg$c2;
+	                      }
+	                    } else {
+	                      peg$currPos = s3;
+	                      s3 = peg$c2;
+	                    }
+	                  } else {
+	                    peg$currPos = s3;
+	                    s3 = peg$c2;
+	                  }
+	                } else {
+	                  peg$currPos = s3;
+	                  s3 = peg$c2;
+	                }
+	                if (s3 !== peg$FAILED) {
+	                  s3 = input.substring(s2, peg$currPos);
+	                }
+	                s2 = s3;
+	                if (s2 !== peg$FAILED) {
+	                  peg$reportedPos = s0;
+	                  s1 = peg$c60(s2);
+	                  s0 = s1;
+	                } else {
+	                  peg$currPos = s0;
+	                  s0 = peg$c2;
+	                }
+	              } else {
+	                peg$currPos = s0;
+	                s0 = peg$c2;
+	              }
+	            }
+	          }
+	        }
+	      }
+
+	      return s0;
+	    }
+
+	    function peg$parsechars() {
+	      var s0, s1, s2;
+
+	      s0 = peg$currPos;
+	      s1 = [];
+	      s2 = peg$parsechar();
+	      if (s2 !== peg$FAILED) {
+	        while (s2 !== peg$FAILED) {
+	          s1.push(s2);
+	          s2 = peg$parsechar();
+	        }
+	      } else {
+	        s1 = peg$c2;
+	      }
+	      if (s1 !== peg$FAILED) {
+	        peg$reportedPos = s0;
+	        s1 = peg$c61(s1);
+	      }
+	      s0 = s1;
+
+	      return s0;
+	    }
+
+	    peg$result = peg$startRuleFunction();
+
+	    if (peg$result !== peg$FAILED && peg$currPos === input.length) {
+	      return peg$result;
+	    } else {
+	      if (peg$result !== peg$FAILED && peg$currPos < input.length) {
+	        peg$fail({ type: "end", description: "end of input" });
+	      }
+
+	      throw peg$buildException(null, peg$maxFailExpected, peg$maxFailPos);
+	    }
+	  }
+
+	  return {
+	    SyntaxError: SyntaxError,
+	    parse:       parse
+	  };
+	})();
+
+	//# sourceMappingURL=parser.js.map
 
 /***/ }
 /******/ ])
