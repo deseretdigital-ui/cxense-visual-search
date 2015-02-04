@@ -124,8 +124,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  render: function() {
 	    return (
 	      React.createElement("div", null, 
-	        this.state.query, 
-	        this.state.filter, 
 	        React.createElement(FeaturedResult, {result: this.firstSearchResult()}), 
 	        React.createElement(Questions, {onQuestionAnswered: this.updateSearchParams}, 
 	          this.props.children

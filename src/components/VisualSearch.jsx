@@ -57,8 +57,6 @@ var VisualSearch = React.createClass({
   render: function() {
     return (
       <div>
-        {this.state.query}
-        {this.state.filter}
         <FeaturedResult result={this.firstSearchResult()} />
         <Questions onQuestionAnswered={this.updateSearchParams}>
           {this.props.children}
