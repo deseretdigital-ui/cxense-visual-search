@@ -1,0 +1,22 @@
+{
+  "name": "DealsWidgetOfDoom",
+  "homepage": "https://github.com/you/DealsWidgetOfDoom",
+  "authors": [
+    "You <you@DealsWidgetOfDoom.com"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "gulp",
+    "gulpfile.js",
+    "src"
+  ],
+  "main": "dist/DealsWidgetOfDoom.js",
+  "dependencies": {
+    "react": "~0.12.1"
+  }
+}
